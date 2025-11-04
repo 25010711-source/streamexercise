@@ -1,22 +1,9 @@
 import streamlit as st
-from sklearn.datasets import load_iris
-from sklearn.ensemble import RandomForestClassifier
 
-st.title("Iris 꽃 분류기 🌸")
+st.title("간단한 사용자 입력 앱")
 
-iris = load_iris()
-X, y = iris.data, iris.target
+name = st.text_input("이름을 입력하세요:")
+age = st.number_input("나이를 입력하세요:", min_value=0, max_value=120)
 
-clf = RandomForestClassifier()
-clf.fit(X, y)
-
-sepal_length = st.slider("Sepal length", 4.0, 8.0, 5.0)
-sepal_width = st.slider("Sepal width", 2.0, 4.5, 3.0)
-petal_length = st.slider("Petal length", 1.0, 7.0, 4.0)
-petal_width = st.slider("Petal width", 0.1, 2.5, 1.0)
-
-sample = [[sepal_length, sepal_width, petal_length, petal_width]]
-prediction = clf.predict(sample)
-predicted_class = iris.target_names[prediction[0]]
-
-st.write(f"🌺 예측된 품종: **{predicted_class}**")
+if st.button("확인"):
+    st.success(f"안녕하세요 {name}님! 당신의 나이는 {age}살 입니다.")
