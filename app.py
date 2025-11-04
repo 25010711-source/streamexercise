@@ -2,15 +2,17 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.title('나의 첫 스트림릿 앱')
+st.title("데이터 시각화 예제")
 
-user_input = st.text_input("이름을 입력하세요:")
+# 랜덤 데이터 생성
+data = pd.DataFrame(
+    np.random.randn(50, 3),
+    columns=["A", "B", "C"]
+)
 
-if st.button('인사하기')
-    if user_input:
-        st.write(f"안녕하세요, {user_input}님! ")
-    else:
-        st.write("이름을 입력하세요.")
+st.subheader("데이터프레임")
+st.dataframe(data)
 
-x = st.slider('숫자를 선택하세요', 0, 100, 25)
-st.write(f"선택한 숫자는 {x}입니다.")
+st.subheader("라인 차트")
+st.line_chart(data)
+
