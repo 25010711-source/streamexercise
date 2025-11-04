@@ -1,18 +1,22 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
 
-st.title("데이터 시각화 예제")
+st.title("Iris 꽃 분류기 🌸")
 
-# 랜덤 데이터 생성
-data = pd.DataFrame(
-    np.random.randn(50, 3),
-    columns=["A", "B", "C"]
-)
+iris = load_iris()
+X, y = iris.data, iris.target
 
-st.subheader("데이터프레임")
-st.dataframe(data)
+clf = RandomForestClassifier()
+clf.fit(X, y)
 
-st.subheader("라인 차트")
-st.line_chart(data)
+sepal_length = st.slider("Sepal length", 4.0, 8.0, 5.0)
+sepal_width = st.slider("Sepal width", 2.0, 4.5, 3.0)
+petal_length = st.slider("Petal length", 1.0, 7.0, 4.0)
+petal_width = st.slider("Petal width", 0.1, 2.5, 1.0)
 
+sample = [[sepal_length, sepal_width, petal_length, petal_width]]
+prediction = clf.predict(sample)
+predicted_class = iris.target_names[prediction[0]]
+
+st.write(f"🌺 예측된 품종: **{predicted_class}**")
