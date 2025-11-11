@@ -6,7 +6,7 @@ import time
 st.set_page_config(page_title="주기율표 퀴즈 게임", page_icon="🧪", layout="centered")
 
 st.title("🧪 주기율표 탐험 퀘스트")
-st.markdown("정답을 맞추면 다음 원소로 자동 진행됩니다!")
+st.markdown("정답을 맞추면 자동으로 다음 원소로 넘어갑니다!")
 
 # --- 데이터 ---
 data = [
@@ -23,7 +23,7 @@ data = [
 ]
 df = pd.DataFrame(data)
 
-# --- 세션 초기화 ---
+# --- 세션 상태 초기화 ---
 if "index" not in st.session_state:
     st.session_state.index = 0
     st.session_state.score = 0
@@ -32,20 +32,21 @@ if "index" not in st.session_state:
     st.session_state.question_type = None
     st.session_state.finished = False
 
-# --- 현재 원소 ---
+# --- 모든 문제 완료 여부 ---
 if st.session_state.index >= len(df):
     st.session_state.finished = True
 
+# --- 퀴즈 진행 ---
 if not st.session_state.finished:
     element = df.iloc[st.session_state.index]
 
-    # 새 문제 출제 (한 원소에 한 문제)
+    # 새 문제 설정
     if st.session_state.question_type is None:
         st.session_state.question_type = random.choice(["symbol", "group", "type"])
         st.session_state.start_time = time.time()
         st.session_state.feedback = ""
 
-    # 문제 표시
+    # 문제 텍스트
     if st.session_state.question_type == "symbol":
         question = f"{element['name']}의 기호(symbol)는 무엇일까요?"
         correct_answer = element["symbol"]
@@ -67,20 +68,29 @@ if not st.session_state.finished:
 
         if user.lower() == correct_answer.lower():
             st.session_state.score += 1
-            st.session_state.feedback = f"🎉 정답입니다! ({elapsed:.2f}초) → 다음 문제로 이동합니다."
+            st.session_state.feedback = f"🎉 정답입니다! ({elapsed:.2f}초)"
             st.session_state.index += 1
             st.session_state.question_type = None
+            st.session_state.user_answer = ""  # 입력창 초기화
+            time.sleep(0.6)  # 잠깐 정답 메시지 보여주기
+            st.rerun()  # 다음 문제로 넘어감
         else:
             st.session_state.feedback = f"❌ 오답입니다! ({elapsed:.2f}초) 다시 시도해보세요."
 
-    # --- 입력 (엔터로 제출) ---
-    st.text_input("정답을 입력하고 엔터를 누르세요:", key="user_answer", on_change=check_answer)
+    # --- 입력창 (엔터 제출) ---
+    st.text_input(
+        "정답을 입력하고 엔터를 누르세요:",
+        key="user_answer",
+        on_change=check_answer,
+        placeholder="엔터키로 제출하세요",
+    )
 
     if st.session_state.feedback:
         st.markdown(st.session_state.feedback)
 
     st.markdown(f"**현재 점수:** {st.session_state.score} / {len(df)}")
 
+# --- 게임 종료 ---
 else:
     st.success(f"🎉 모든 문제를 완료했습니다! 최종 점수: {st.session_state.score}/{len(df)}")
     if st.button("🔁 다시 시작하기"):
