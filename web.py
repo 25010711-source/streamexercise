@@ -6,7 +6,6 @@ import time
 st.set_page_config(page_title="주기율표 퀴즈 게임", page_icon="🧪", layout="centered")
 
 st.title("🧪 주기율표 탐험 퀘스트")
-st.markdown("정답을 맞추면 자동으로 다음 원소로 넘어갑니다!")
 
 # --- 데이터 ---
 data = [
@@ -23,30 +22,43 @@ data = [
 ]
 df = pd.DataFrame(data)
 
-# --- 세션 상태 초기화 ---
-if "index" not in st.session_state:
-    st.session_state.index = 0
-    st.session_state.score = 0
-    st.session_state.start_time = time.time()
-    st.session_state.feedback = ""
-    st.session_state.question_type = None
-    st.session_state.finished = False
+# --- 세션 상태 초기화 함수 ---
+def reset_game():
+    for key in [
+        "started", "index", "score", "feedback", "question_type",
+        "finished", "game_start_time", "start_time", "total_time"
+    ]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.rerun()
 
-# --- 모든 문제 완료 여부 ---
-if st.session_state.index >= len(df):
-    st.session_state.finished = True
+# --- 게임 시작 전 화면 ---
+if "started" not in st.session_state:
+    st.markdown("### 🧠 화학 원소를 맞추는 퀴즈 게임입니다!")
+    st.write("각 문제에 정답을 입력하고 **엔터를 눌러 제출**하세요.")
+    st.write("모든 문제를 풀면 총 걸린 시간이 표시됩니다!")
+    if st.button("🚀 게임 시작하기"):
+        st.session_state.started = True
+        st.session_state.index = 0
+        st.session_state.score = 0
+        st.session_state.feedback = ""
+        st.session_state.question_type = None
+        st.session_state.finished = False
+        st.session_state.game_start_time = time.time()  # 총 시간 시작
+        st.session_state.start_time = time.time()
+        st.session_state.total_time = 0
+        st.rerun()
 
-# --- 퀴즈 진행 ---
-if not st.session_state.finished:
+# --- 게임 진행 화면 ---
+elif not st.session_state.get("finished", False):
     element = df.iloc[st.session_state.index]
 
-    # 새 문제 설정
     if st.session_state.question_type is None:
         st.session_state.question_type = random.choice(["symbol", "group", "type"])
         st.session_state.start_time = time.time()
         st.session_state.feedback = ""
 
-    # 문제 텍스트
+    # 문제 만들기
     if st.session_state.question_type == "symbol":
         question = f"{element['name']}의 기호(symbol)는 무엇일까요?"
         correct_answer = element["symbol"]
@@ -60,7 +72,7 @@ if not st.session_state.finished:
     st.markdown(f"### 🧩 문제 {st.session_state.index + 1} / {len(df)}")
     st.markdown(f"**{question}**")
 
-    # --- 정답 체크 함수 ---
+    # 정답 확인 함수
     def check_answer():
         user = st.session_state.user_answer.strip()
         end_time = time.time()
@@ -71,13 +83,17 @@ if not st.session_state.finished:
             st.session_state.feedback = f"🎉 정답입니다! ({elapsed:.2f}초)"
             st.session_state.index += 1
             st.session_state.question_type = None
-            st.session_state.user_answer = ""  # 입력창 초기화
-            time.sleep(0.6)  # 잠깐 정답 메시지 보여주기
-            st.rerun()  # 다음 문제로 넘어감
+            st.session_state.user_answer = ""
+            time.sleep(0.6)
+            # 게임 종료 시점 확인
+            if st.session_state.index >= len(df):
+                st.session_state.finished = True
+                st.session_state.total_time = time.time() - st.session_state.game_start_time
+            st.rerun()
         else:
             st.session_state.feedback = f"❌ 오답입니다! ({elapsed:.2f}초) 다시 시도해보세요."
 
-    # --- 입력창 (엔터 제출) ---
+    # 입력창
     st.text_input(
         "정답을 입력하고 엔터를 누르세요:",
         key="user_answer",
@@ -90,14 +106,14 @@ if not st.session_state.finished:
 
     st.markdown(f"**현재 점수:** {st.session_state.score} / {len(df)}")
 
-# --- 게임 종료 ---
+# --- 게임 종료 화면 ---
 else:
-    st.success(f"🎉 모든 문제를 완료했습니다! 최종 점수: {st.session_state.score}/{len(df)}")
+    total_time = st.session_state.total_time
+    st.success(f"🎉 모든 문제를 완료했습니다!")
+    st.markdown(f"**최종 점수:** {st.session_state.score} / {len(df)}")
+    st.markdown(f"⏱️ **총 걸린 시간:** {total_time:.2f}초")
     if st.button("🔁 다시 시작하기"):
-        for key in ["index", "score", "feedback", "question_type", "finished"]:
-            if key in st.session_state:
-                del st.session_state[key]
-        st.rerun()
+        reset_game()
 
 st.markdown("---")
 st.caption("© 2025 화학 탐험 게임 | Streamlit + Python")
