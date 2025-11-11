@@ -3,12 +3,12 @@ import pandas as pd
 import random
 import time
 
-st.set_page_config(page_title="주기율표 탐험 퀘스트", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="주기율표 퀴즈 게임", page_icon="🧪", layout="centered")
 
 st.title("🧪 주기율표 탐험 퀘스트")
-st.markdown("**원소를 클릭해 정보를 확인하고 퀴즈에 도전하세요!**")
+st.markdown("정답을 맞추면 다음 원소로 자동 진행됩니다!")
 
-# --- 데이터 정의 ---
+# --- 데이터 ---
 data = [
     {"symbol": "H",  "name": "Hydrogen", "atomic_number": 1, "group": 1, "period": 1, "type": "비금속"},
     {"symbol": "He", "name": "Helium",   "atomic_number": 2, "group": 18, "period": 1, "type": "비활성 기체"},
@@ -21,79 +21,73 @@ data = [
     {"symbol": "F",  "name": "Fluorine", "atomic_number": 9, "group": 17, "period": 2, "type": "비금속"},
     {"symbol": "Ne", "name": "Neon",     "atomic_number": 10, "group": 18, "period": 2, "type": "비활성 기체"},
 ]
-
 df = pd.DataFrame(data)
 
-# --- 주기율표 버튼 ---
-cols = st.columns(10)
-for i, col in enumerate(cols):
-    with col:
-        if i < len(df):
-            el = df.iloc[i]
-            if st.button(el["symbol"]):
-                st.session_state["selected"] = el["symbol"]
-                st.session_state["start_time"] = time.time()
-                st.session_state["answered"] = False
-                st.session_state["feedback"] = ""
+# --- 세션 초기화 ---
+if "index" not in st.session_state:
+    st.session_state.index = 0
+    st.session_state.score = 0
+    st.session_state.start_time = time.time()
+    st.session_state.feedback = ""
+    st.session_state.question_type = None
+    st.session_state.finished = False
 
-# --- 선택된 원소 처리 ---
-if "selected" in st.session_state:
-    symbol = st.session_state["selected"]
-    element = df[df["symbol"] == symbol].iloc[0]
-    st.markdown("---")
-    st.subheader(f"🔍 {element['name']} ({element['symbol']})")
-    st.write(f"**원자번호:** {element['atomic_number']}")
-    st.write(f"**족(Group):** {element['group']}")
-    st.write(f"**주기(Period):** {element['period']}")
-    st.write(f"**종류(Type):** {element['type']}")
+# --- 현재 원소 ---
+if st.session_state.index >= len(df):
+    st.session_state.finished = True
 
-    # --- 퀴즈 ---
-    if "question" not in st.session_state or st.session_state["answered"]:
-        st.session_state["question"] = random.choice([
-            f"{element['symbol']}의 원자번호는 무엇일까요?",
-            f"{element['symbol']}은(는) 어떤 종류의 원소일까요?",
-            f"{element['symbol']}은(는) 몇 족에 속하나요?"
-        ])
-        st.session_state["answered"] = False
+if not st.session_state.finished:
+    element = df.iloc[st.session_state.index]
 
-    question = st.session_state["question"]
-    st.markdown("### 🧩 퀴즈 타임!")
-    st.write(f"**문제:** {question}")
+    # 새 문제 출제 (한 원소에 한 문제)
+    if st.session_state.question_type is None:
+        st.session_state.question_type = random.choice(["symbol", "group", "type"])
+        st.session_state.start_time = time.time()
+        st.session_state.feedback = ""
 
-    # --- 엔터키 입력 (on_change 사용) ---
+    # 문제 표시
+    if st.session_state.question_type == "symbol":
+        question = f"{element['name']}의 기호(symbol)는 무엇일까요?"
+        correct_answer = element["symbol"]
+    elif st.session_state.question_type == "group":
+        question = f"{element['symbol']}은(는) 몇 족에 속할까요?"
+        correct_answer = str(element["group"])
+    else:
+        question = f"{element['symbol']}은(는) 어떤 종류의 원소일까요?"
+        correct_answer = element["type"]
+
+    st.markdown(f"### 🧩 문제 {st.session_state.index + 1} / {len(df)}")
+    st.markdown(f"**{question}**")
+
+    # --- 정답 체크 함수 ---
     def check_answer():
-        user_answer = st.session_state["user_answer"].strip()
-        correct = False
-        if "원자번호" in question and str(element["atomic_number"]) == user_answer:
-            correct = True
-        elif "종류" in question and element["type"] in user_answer:
-            correct = True
-        elif "몇 족" in question and str(element["group"]) == user_answer:
-            correct = True
-
+        user = st.session_state.user_answer.strip()
         end_time = time.time()
-        elapsed = end_time - st.session_state["start_time"]
+        elapsed = end_time - st.session_state.start_time
 
-        if correct:
-            st.session_state["feedback"] = f"🎉 정답입니다! ({elapsed:.2f}초 걸렸어요)"
+        if user.lower() == correct_answer.lower():
+            st.session_state.score += 1
+            st.session_state.feedback = f"🎉 정답입니다! ({elapsed:.2f}초) → 다음 문제로 이동합니다."
+            st.session_state.index += 1
+            st.session_state.question_type = None
         else:
-            st.session_state["feedback"] = f"😅 오답입니다! ({elapsed:.2f}초 걸렸어요)"
+            st.session_state.feedback = f"❌ 오답입니다! ({elapsed:.2f}초) 다시 시도해보세요."
 
-        st.session_state["answered"] = True
+    # --- 입력 (엔터로 제출) ---
+    st.text_input("정답을 입력하고 엔터를 누르세요:", key="user_answer", on_change=check_answer)
 
-    st.text_input(
-        "당신의 답:",
-        key="user_answer",
-        on_change=check_answer,
-        placeholder="엔터키를 눌러 제출하세요"
-    )
+    if st.session_state.feedback:
+        st.markdown(st.session_state.feedback)
 
-    if "feedback" in st.session_state and st.session_state["feedback"]:
-        st.markdown(st.session_state["feedback"])
+    st.markdown(f"**현재 점수:** {st.session_state.score} / {len(df)}")
 
 else:
-    st.info("👆 위의 주기율표에서 원소를 클릭해보세요!")
+    st.success(f"🎉 모든 문제를 완료했습니다! 최종 점수: {st.session_state.score}/{len(df)}")
+    if st.button("🔁 다시 시작하기"):
+        for key in ["index", "score", "feedback", "question_type", "finished"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
 
 st.markdown("---")
 st.caption("© 2025 화학 탐험 게임 | Streamlit + Python")
-
