@@ -145,7 +145,6 @@ def reset_game():
 def main():
     st.set_page_config(page_title="화학 분자식 게임")
     st.title("⚗️ 화학 분자식 게임")
-    st.write("쉬운 문제 20개와 고3 수준 문제 3개를 포함한 게임입니다.")
 
     with st.sidebar:
         st.header("설정")
