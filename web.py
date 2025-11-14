@@ -1,14 +1,13 @@
 """
-Streamlit Chemical Formula Game (Korean Version)
+Streamlit 화학 분자식 게임 (한국어 버전)
 
-Run locally:
+실행 방법:
 1. pip install streamlit
 2. streamlit run streamlit_chem_game.py
 """
 
 import streamlit as st
 import random
-import textwrap
 from typing import List, Tuple
 
 # -------------------------
@@ -38,7 +37,7 @@ MOLECULES = [
 ]
 
 # -------------------------
-# 문제 생성 유틸
+# 문제 생성
 # -------------------------
 
 def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
@@ -78,7 +77,6 @@ def init_state():
         "question_index": 0,
         "questions_to_ask": 10,
         "mode": "formula_to_name",
-        "difficulty": "Easy",
         "current_question": None,
     }
     for k, v in defaults.items():
@@ -86,7 +84,7 @@ def init_state():
             st.session_state[k] = v
 
 # -------------------------
-# 다음 문제 생성
+# 다음 문제
 # -------------------------
 
 def next_question():
@@ -119,9 +117,7 @@ def main():
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-
         st.session_state.questions_to_ask = st.slider("문제 수", 5, 30, 10)
-
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
@@ -133,7 +129,6 @@ def main():
     st.metric("점수", f"{st.session_state.score}/{st.session_state.total}")
     st.metric("연속 정답", st.session_state.streak)
 
-    # 문제 생성
     if st.session_state.current_question is None:
         next_question()
 
@@ -159,7 +154,9 @@ def main():
             st.write(f"게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.rerun()
 
-    st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
+    # progress 값이 0~1 범위 내에서만 계산되도록 방어
+    progress_value = min(max(st.session_state.question_index / max(st.session_state.questions_to_ask,1),0.0),1.0)
+    st.progress(progress_value)
 
 if __name__ == "__main__":
     main()
