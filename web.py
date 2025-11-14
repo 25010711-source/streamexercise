@@ -1,119 +1,298 @@
+"""
+Streamlit Chemical Formula Game
+
+How to run locally:
+1. Install requirements: pip install streamlit
+2. Run: streamlit run streamlit_chem_game.py
+
+This single-file Streamlit app includes:
+- Two game modes: "Formula → Name" and "Name → Formula"
+- Multiple-choice questions with plausible distractors
+- Score, streak, and progress tracking
+- Hints and difficulty levels
+- Small built-in dataset of common molecules; easily extendable
+
+Drop this file into a Git repository and push to GitHub. Then deploy with Streamlit Cloud or other host.
+
+Author: Generated for the user
+"""
+
 import streamlit as st
-import pandas as pd
 import random
-import time
+import textwrap
+from typing import List, Tuple
 
-st.set_page_config(page_title="주기율표 퀴즈 게임", page_icon="🧪", layout="centered")
-
-st.title("🧪 주기율표 탐험 퀘스트")
-
-# --- 데이터 ---
-data = [
-    {"symbol": "H",  "name": "Hydrogen", "atomic_number": 1, "group": 1, "period": 1, "type": "비금속"},
-    {"symbol": "He", "name": "Helium",   "atomic_number": 2, "group": 18, "period": 1, "type": "비활성 기체"},
-    {"symbol": "Li", "name": "Lithium",  "atomic_number": 3, "group": 1, "period": 2, "type": "금속"},
-    {"symbol": "Be", "name": "Beryllium","atomic_number": 4, "group": 2, "period": 2, "type": "금속"},
-    {"symbol": "B",  "name": "Boron",    "atomic_number": 5, "group": 13, "period": 2, "type": "준금속"},
-    {"symbol": "C",  "name": "Carbon",   "atomic_number": 6, "group": 14, "period": 2, "type": "비금속"},
-    {"symbol": "N",  "name": "Nitrogen", "atomic_number": 7, "group": 15, "period": 2, "type": "비금속"},
-    {"symbol": "O",  "name": "Oxygen",   "atomic_number": 8, "group": 16, "period": 2, "type": "비금속"},
-    {"symbol": "F",  "name": "Fluorine", "atomic_number": 9, "group": 17, "period": 2, "type": "비금속"},
-    {"symbol": "Ne", "name": "Neon",     "atomic_number": 10, "group": 18, "period": 2, "type": "비활성 기체"},
+# -------------------------
+# Data: common molecules
+# -------------------------
+# Each entry: (formula, name)
+MOLECULES = [
+    ("H2O", "Water"),
+    ("CO2", "Carbon dioxide"),
+    ("O2", "Oxygen"),
+    ("N2", "Nitrogen"),
+    ("CH4", "Methane"),
+    ("C2H6", "Ethane"),
+    ("C2H5OH", "Ethanol"),
+    ("C6H6", "Benzene"),
+    ("C6H12O6", "Glucose"),
+    ("NaCl", "Sodium chloride"),
+    ("HCl", "Hydrochloric acid"),
+    ("NH3", "Ammonia"),
+    ("H2SO4", "Sulfuric acid"),
+    ("CaCO3", "Calcium carbonate"),
+    ("KNO3", "Potassium nitrate"),
+    ("NaHCO3", "Sodium bicarbonate"),
+    ("H2O2", "Hydrogen peroxide"),
+    ("SiO2", "Silicon dioxide"),
+    ("Fe2O3", "Iron(III) oxide"),
+    ("AgNO3", "Silver nitrate")
 ]
-df = pd.DataFrame(data)
 
-# --- 세션 상태 초기화 함수 ---
-def reset_game():
-    for key in [
-        "started", "index", "score", "feedback", "question_type",
-        "finished", "game_start_time", "start_time", "total_time"
-    ]:
-        if key in st.session_state:
-            del st.session_state[key]
-    st.rerun()
+# -------------------------
+# Utility functions
+# -------------------------
 
-# --- 게임 시작 전 화면 ---
-if "started" not in st.session_state:
-    st.markdown("### 🧠 화학 원소를 맞추는 퀴즈 게임입니다!")
-    st.write("각 문제에 정답을 입력하고 **엔터를 눌러 제출**하세요.")
-    st.write("모든 문제를 풀면 총 걸린 시간이 표시됩니다!")
-    if st.button("🚀 게임 시작하기"):
-        st.session_state.started = True
-        st.session_state.index = 0
-        st.session_state.score = 0
-        st.session_state.feedback = ""
-        st.session_state.question_type = None
-        st.session_state.finished = False
-        st.session_state.game_start_time = time.time()  # 총 시간 시작
-        st.session_state.start_time = time.time()
-        st.session_state.total_time = 0
-        st.rerun()
+def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
+    """Generate n distractors for a correct answer.
+    mode: 'formula_to_name' or 'name_to_formula'
+    """
+    choices = set()
+    attempts = 0
+    while len(choices) < n and attempts < 200:
+        attempts += 1
+        item = random.choice(pool)
+        candidate = item[1] if mode == "formula_to_name" else item[0]
+        if candidate == correct:
+            continue
+        # Slightly prefer entries that share elements or word patterns
+        choices.add(candidate)
+    return list(choices)
 
-# --- 게임 진행 화면 ---
-elif not st.session_state.get("finished", False):
-    element = df.iloc[st.session_state.index]
 
-    if st.session_state.question_type is None:
-        st.session_state.question_type = random.choice(["symbol", "group", "type"])
-        st.session_state.start_time = time.time()
-        st.session_state.feedback = ""
-
-    # 문제 만들기
-    if st.session_state.question_type == "symbol":
-        question = f"{element['name']}의 기호(symbol)는 무엇일까요?"
-        correct_answer = element["symbol"]
-    elif st.session_state.question_type == "group":
-        question = f"{element['symbol']}은(는) 몇 족에 속할까요?"
-        correct_answer = str(element["group"])
+def make_question(pool: List[Tuple[str, str]], mode: str) -> Tuple[str, List[str], str]:
+    """Create a question. Returns (prompt, options, correct)
+    - mode 'formula_to_name': prompt shows formula, options are names
+    - mode 'name_to_formula': prompt shows name, options are formulas
+    """
+    formula, name = random.choice(pool)
+    if mode == "formula_to_name":
+        prompt = f"Which compound has the formula {formula}?"
+        correct = name
+        distractors = generate_distractors(correct, pool, mode)
     else:
-        question = f"{element['symbol']}은(는) 어떤 종류의 원소일까요?"
-        correct_answer = element["type"]
+        prompt = f"What is the molecular formula of {name}?"
+        correct = formula
+        distractors = generate_distractors(correct, pool, mode)
 
-    st.markdown(f"### 🧩 문제 {st.session_state.index + 1} / {len(df)}")
-    st.markdown(f"**{question}**")
+    options = distractors + [correct]
+    random.shuffle(options)
+    return prompt, options, correct
 
-    # 정답 확인 함수
-    def check_answer():
-        user = st.session_state.user_answer.strip()
-        end_time = time.time()
-        elapsed = end_time - st.session_state.start_time
 
-        if user.lower() == correct_answer.lower():
-            st.session_state.score += 1
-            st.session_state.feedback = f"🎉 정답입니다! ({elapsed:.2f}초)"
-            st.session_state.index += 1
-            st.session_state.question_type = None
-            st.session_state.user_answer = ""
-            time.sleep(0.6)
-            # 게임 종료 시점 확인
-            if st.session_state.index >= len(df):
-                st.session_state.finished = True
-                st.session_state.total_time = time.time() - st.session_state.game_start_time
-            st.rerun()
+# -------------------------
+# Game state helpers
+# -------------------------
+
+def init_state():
+    if "score" not in st.session_state:
+        st.session_state.score = 0
+    if "total" not in st.session_state:
+        st.session_state.total = 0
+    if "streak" not in st.session_state:
+        st.session_state.streak = 0
+    if "question_index" not in st.session_state:
+        st.session_state.question_index = 0
+    if "questions_to_ask" not in st.session_state:
+        st.session_state.questions_to_ask = 10
+    if "current_question" not in st.session_state:
+        st.session_state.current_question = None
+    if "mode" not in st.session_state:
+        st.session_state.mode = "formula_to_name"
+    if "difficulty" not in st.session_state:
+        st.session_state.difficulty = "Easy"
+    if "used_questions" not in st.session_state:
+        st.session_state.used_questions = set()
+
+
+def next_question():
+    pool = MOLECULES.copy()
+    # Difficulty could influence pool size or distractor quality
+    if st.session_state.difficulty == "Easy":
+        pool = [m for m in MOLECULES if m[1] in ["Water", "Carbon dioxide", "Oxygen", "Methane", "Ethanol", "Sodium chloride", "Glucose"] ]
+    elif st.session_state.difficulty == "Medium":
+        pool = MOLECULES
+    else:  # Hard
+        pool = MOLECULES + [ ("C3H8", "Propane"), ("C4H10", "Butane"), ("C3H6", "Propene") ]
+
+    # Avoid repeating the same exact pair in a single session
+    attempts = 0
+    while attempts < 100:
+        attempts += 1
+        formula, name = random.choice(pool)
+        pair_key = (formula, name)
+        if pair_key not in st.session_state.used_questions:
+            st.session_state.used_questions.add(pair_key)
+            break
+    prompt, options, correct = make_question(pool, st.session_state.mode)
+    st.session_state.current_question = {
+        "prompt": prompt,
+        "options": options,
+        "correct": correct
+    }
+
+
+def reset_game():
+    st.session_state.score = 0
+    st.session_state.total = 0
+    st.session_state.streak = 0
+    st.session_state.question_index = 0
+    st.session_state.used_questions = set()
+    st.session_state.current_question = None
+
+
+# -------------------------
+# Streamlit UI
+# -------------------------
+
+def main():
+    st.set_page_config(page_title="Chemical Formula Game", layout="centered")
+    st.title("⚗️ 화학 분자식 게임")
+    st.write("간단하고 재미있는 분자식 암기 게임 — 점수를 쌓고 연속 정답(streak)을 유지해 보세요!")
+
+    # Sidebar: settings
+    with st.sidebar:
+        st.header("설정")
+        mode = st.radio("게임 모드", ("Formula → Name", "Name → Formula"))
+        st.session_state.mode = "formula_to_name" if mode.startswith("Formula") else "name_to_formula"
+        st.session_state.questions_to_ask = st.slider("문제 수", min_value=5, max_value=30, value=10, step=1)
+        st.session_state.difficulty = st.selectbox("난이도", ("Easy", "Medium", "Hard"))
+        st.markdown("---")
+        if st.button("게임 초기화"):
+            reset_game()
+            st.experimental_rerun()
+
+    init_state()
+
+    # Start / progress
+    col1, col2 = st.columns([3,1])
+    with col1:
+        st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
+    with col2:
+        st.metric("점수", f"{st.session_state.score}/{st.session_state.total}")
+        st.metric("연속 정답", st.session_state.streak)
+
+    # If no current question, generate one
+    if st.session_state.current_question is None or st.session_state.question_index >= st.session_state.questions_to_ask:
+        if st.session_state.question_index >= st.session_state.questions_to_ask:
+            st.success("모든 문제 완료!")
+            st.write(f"최종 점수: {st.session_state.score}/{st.session_state.total}")
+            if st.button("다시 플레이"):
+                reset_game()
+                next_question()
+                st.session_state.question_index = 0
+                st.experimental_rerun()
+            st.stop()
         else:
-            st.session_state.feedback = f"❌ 오답입니다! ({elapsed:.2f}초) 다시 시도해보세요."
+            next_question()
 
-    # 입력창
-    st.text_input(
-        "정답을 입력하고 엔터를 누르세요:",
-        key="user_answer",
-        on_change=check_answer,
-        placeholder="엔터키로 제출하세요",
-    )
+    q = st.session_state.current_question
+    st.write(q["prompt"])
 
-    if st.session_state.feedback:
-        st.markdown(st.session_state.feedback)
+    # Show options as radio buttons
+    choice = st.radio("정답을 선택하세요:", q["options"], key=f"choice_{st.session_state.question_index}")
 
-    st.markdown(f"**현재 점수:** {st.session_state.score} / {len(df)}")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        if st.button("제출", key=f"submit_{st.session_state.question_index}"):
+            st.session_state.total += 1
+            if choice == q["correct"]:
+                st.session_state.score += 1
+                st.session_state.streak += 1
+                st.success("정답입니다! 🎉")
+            else:
+                st.session_state.streak = 0
+                st.error(f"오답입니다 — 정답은: {q['correct']}")
+            st.session_state.question_index += 1
+            if st.session_state.question_index < st.session_state.questions_to_ask:
+                next_question()
+            else:
+                # end
+                pass
+            st.experimental_rerun()
+    with col_b:
+        if st.button("힌트", key=f"hint_{st.session_state.question_index}"):
+            # Simple hint system: show elements in formula or word parts
+            if st.session_state.mode == "formula_to_name":
+                # show chemical elements present (naive parse)
+                elements = extract_elements_from_formula(q["correct"] if False else q["prompt"])  # prompt contains formula in this mode
+                st.info(f"힌트 — 포함된 원소: {elements}")
+            else:
+                # show first letters of formula
+                st.info(f"힌트 — 정답의 첫 글자: {q['correct'][0]}")
+    with col_c:
+        if st.button("다음 문제", key=f"next_{st.session_state.question_index}"):
+            st.session_state.question_index += 1
+            if st.session_state.question_index < st.session_state.questions_to_ask:
+                next_question()
+            else:
+                pass
+            st.experimental_rerun()
 
-# --- 게임 종료 화면 ---
-else:
-    total_time = st.session_state.total_time
-    st.success(f"🎉 모든 문제를 완료했습니다!")
-    st.markdown(f"**최종 점수:** {st.session_state.score} / {len(df)}")
-    st.markdown(f"⏱️ **총 걸린 시간:** {total_time:.2f}초")
-    if st.button("🔁 다시 시작하기"):
-        reset_game()
+    # Progress bar
+    progress = st.session_state.question_index / st.session_state.questions_to_ask
+    st.progress(progress)
 
-st.markdown("---")
-st.caption("© 2025 화학 탐험 게임 | Streamlit + Python")
+    # Show small table of recent performance
+    st.markdown("---")
+    st.subheader("오늘의 통계")
+    st.write(f"총 시도: {st.session_state.total}, 정답: {st.session_state.score}, 연속 정답: {st.session_state.streak}")
+
+    # Footer: small how-to and extendability
+    st.markdown("---")
+    st.markdown(textwrap.dedent(
+        """
+        **앱 확장 아이디어**
+        - 더 많은 분자식을 CSV로 관리하고 업로드 기능 추가
+        - 학생용 레벨(중학교/고등학교/대학)별 문제집 구성
+        - GitHub Actions를 이용해 테스트와 배포 자동화
+        - Streamlit Cloud에 배포하여 URL을 공유
+        """
+    ))
+
+
+# -------------------------
+# Helper: naive element extraction for hints
+# -------------------------
+
+def extract_elements_from_formula(prompt: str) -> str:
+    """Very naive parser: extracts uppercase letters (and following lowercase) as elements.
+    If prompt contains words (like the full prompt string), try to find formula inside.
+    """
+    # try to find a formula-like token like containing letters and digits and possibly parentheses
+    tokens = prompt.replace('?', ' ').split()
+    candidate = None
+    for t in tokens:
+        if any(c.isdigit() for c in t) and any(c.isalpha() for c in t):
+            candidate = t
+            break
+    if candidate is None:
+        # fallback: use the prompt as-is
+        candidate = prompt
+    elements = []
+    i = 0
+    while i < len(candidate):
+        c = candidate[i]
+        if c.isupper():
+            elem = c
+            j = i + 1
+            if j < len(candidate) and candidate[j].islower():
+                elem += candidate[j]
+                i += 1
+            elements.append(elem)
+        i += 1
+    return ", ".join(elements) if elements else "정보 없음"
+
+
+if __name__ == "__main__":
+    main()
