@@ -42,7 +42,9 @@ MOLECULES = [
 
 def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
     choices = set()
-    while len(choices) < n:
+    attempts = 0
+    while len(choices) < n and attempts < 100:
+        attempts += 1
         f, nm = random.choice(pool)
         candidate = nm if mode == "formula_to_name" else f
         if candidate != correct:
@@ -78,6 +80,7 @@ def init_state():
         "questions_to_ask": 10,
         "mode": "formula_to_name",
         "current_question": None,
+        "used_questions": set(),
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -89,7 +92,28 @@ def init_state():
 
 def next_question():
     pool = MOLECULES.copy()
-    prompt, options, correct = make_question(pool, st.session_state.mode)
+
+    # 중복 방지
+    available_pool = [m for m in pool if m not in st.session_state.used_questions]
+    if not available_pool:
+        # 모든 문제 사용 시 초기화
+        st.session_state.used_questions.clear()
+        available_pool = pool.copy()
+
+    formula, name = random.choice(available_pool)
+    st.session_state.used_questions.add((formula, name))
+
+    if st.session_state.mode == "formula_to_name":
+        prompt = f"다음 화학식의 물질 이름은 무엇인가요? {formula}"
+        correct = name
+    else:
+        prompt = f"다음 물질의 분자식은 무엇인가요? {name}"
+        correct = formula
+
+    distractors = generate_distractors(correct, pool, st.session_state.mode)
+    options = distractors + [correct]
+    random.shuffle(options)
+
     st.session_state.current_question = {
         "prompt": prompt,
         "options": options,
@@ -101,8 +125,8 @@ def next_question():
 # -------------------------
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question"]:
-        st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
+    for key in ["score","total","streak","question_index","current_question","used_questions"]:
+        st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else set() if key == "used_questions" else None
 
 # -------------------------
 # 메인 UI
@@ -117,14 +141,15 @@ def main():
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, 30, 10)
+        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(len(MOLECULES), 30), 10)
+
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
 
     init_state()
 
-    # 문제 카운트 & 점수 표시
+    # 문제 표시
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
     st.metric("점수", f"{st.session_state.score}/{st.session_state.total}")
     st.metric("연속 정답", st.session_state.streak)
@@ -154,7 +179,6 @@ def main():
             st.write(f"게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.rerun()
 
-    # progress 값이 0~1 범위 내에서만 계산되도록 방어
     progress_value = min(max(st.session_state.question_index / max(st.session_state.questions_to_ask,1),0.0),1.0)
     st.progress(progress_value)
 
