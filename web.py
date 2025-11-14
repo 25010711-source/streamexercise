@@ -8,6 +8,7 @@ Streamlit 화학 분자식 게임 (한국어 버전)
 
 import streamlit as st
 import random
+import time
 from typing import List, Tuple
 
 # -------------------------
@@ -81,6 +82,7 @@ def init_state():
         "mode": "formula_to_name",
         "current_question": None,
         "used_questions": set(),
+        "start_time": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -124,8 +126,11 @@ def next_question():
 # -------------------------
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions"]:
-        st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else set() if key == "used_questions" else None
+    for key in ["score","total","streak","question_index","current_question","used_questions","start_time"]:
+        if key == "used_questions":
+            st.session_state[key] = set()
+        else:
+            st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
 
 # -------------------------
 # 메인 UI
@@ -148,16 +153,25 @@ def main():
 
     init_state()
 
-    if st.session_state.current_question is None:
+    if st.session_state.start_time is None:
+        st.session_state.start_time = time.time()
+
+    if st.session_state.current_question is None and st.session_state.question_index < st.session_state.questions_to_ask:
         next_question()
 
-    # 문제 표시
+    if st.session_state.question_index >= st.session_state.questions_to_ask:
+        elapsed = time.time() - st.session_state.start_time
+        st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
+        return
+
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 답 선택 시 바로 제출
-    choice = st.radio("정답 선택:", q["options"], key=f"choice_{st.session_state.question_index}")
+    # 선택지: 초기 선택 없음(disabled default)
+    choice = st.radio("정답 선택:", q["options"], index=-1, key=f"choice_{st.session_state.question_index}")
+
     if choice:
         st.session_state.total += 1
         if choice == q["correct"]:
@@ -172,10 +186,8 @@ def main():
         if st.session_state.question_index < st.session_state.questions_to_ask:
             next_question()
             st.rerun()
-        else:
-            st.write(f"게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
 
-    progress_value = min(max(st.session_state.question_index / max(st.session_state.questions_to_ask,1),0.0),1.0)
+    progress_value = st.session_state.question_index / st.session_state.questions_to_ask
     st.progress(progress_value)
 
 if __name__ == "__main__":
