@@ -150,7 +150,7 @@ def main():
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(len(MOLECULES), 23), 10)
+        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(5, 23), 20)
 
         if st.button("게임 초기화"):
             reset_game()
