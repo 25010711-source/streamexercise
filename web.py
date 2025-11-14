@@ -94,8 +94,6 @@ def init_state():
 
 def next_question():
     pool = MOLECULES.copy()
-
-    # 중복 방지
     available_pool = [m for m in pool if m not in st.session_state.used_questions]
     if not available_pool:
         st.session_state.used_questions.clear()
@@ -169,10 +167,10 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 선택지: 초기 선택 없음(disabled default)
-    choice = st.radio("정답 선택:", q["options"], index=-1, key=f"choice_{st.session_state.question_index}")
+    # 선택지: index=None 사용으로 초기 선택 없음
+    choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
 
-    if choice:
+    if choice is not None:
         st.session_state.total += 1
         if choice == q["correct"]:
             st.session_state.score += 1
