@@ -83,6 +83,7 @@ def init_state():
         "current_question": None,
         "used_questions": set(),
         "start_time": None,
+        "game_over": False
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -124,9 +125,11 @@ def next_question():
 # -------------------------
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","start_time"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","start_time","game_over"]:
         if key == "used_questions":
             st.session_state[key] = set()
+        elif key == "game_over":
+            st.session_state[key] = False
         else:
             st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
 
@@ -154,14 +157,14 @@ def main():
     if st.session_state.start_time is None:
         st.session_state.start_time = time.time()
 
-    if st.session_state.current_question is None and st.session_state.question_index < st.session_state.questions_to_ask:
-        next_question()
-
-    if st.session_state.question_index >= st.session_state.questions_to_ask:
+    if st.session_state.game_over:
         elapsed = time.time() - st.session_state.start_time
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
         return
+
+    if st.session_state.current_question is None:
+        next_question()
 
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
@@ -181,9 +184,12 @@ def main():
             st.error(f"오답입니다. 정답: {q['correct']}")
 
         st.session_state.question_index += 1
-        if st.session_state.question_index < st.session_state.questions_to_ask:
+
+        if st.session_state.question_index >= st.session_state.questions_to_ask:
+            st.session_state.game_over = True
+        else:
             next_question()
-            st.rerun()
+        st.rerun()
 
     progress_value = st.session_state.question_index / st.session_state.questions_to_ask
     st.progress(progress_value)
