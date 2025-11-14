@@ -1,5 +1,5 @@
 """
-Streamlit 화학 분자식 게임 (한국어 버전)
+Streamlit 화학 분자식 게임 (한국어 버전) - 쉬운 문제 20개 + 고3 수준 3개
 
 실행 방법:
 1. pip install streamlit
@@ -12,29 +12,34 @@ import time
 from typing import List, Tuple
 
 # -------------------------
-# 데이터: 기본 분자식 목록
+# 데이터: 쉬운 문제 20개 + 고3 수준 3개
 # -------------------------
 MOLECULES = [
+    # 쉬운 문제 20개
     ("H2O", "물"),
     ("CO2", "이산화탄소"),
     ("O2", "산소"),
     ("N2", "질소"),
     ("CH4", "메테인"),
     ("C2H6", "에테인"),
-    ("C2H5OH", "에탄올"),
-    ("C6H6", "벤젠"),
-    ("C6H12O6", "포도당"),
     ("NaCl", "염화나트륨"),
     ("HCl", "염화수소"),
     ("NH3", "암모니아"),
     ("H2SO4", "황산"),
     ("CaCO3", "탄산칼슘"),
-    ("KNO3", "질산칼륨"),
     ("NaHCO3", "탄산수소나트륨"),
-    ("H2O2", "과산화수소"),
-    ("SiO2", "이산화규소"),
-    ("Fe2O3", "산화철(III)"),
-    ("AgNO3", "질산은"),
+    ("KNO3", "질산칼륨"),
+    ("NaOH", "수산화나트륨"),
+    ("KOH", "수산화칼륨"),
+    ("Ca(OH)2", "수산화칼슘"),
+    ("Mg(OH)2", "수산화마그네슘"),
+    ("BaSO4", "황산바륨"),
+    ("HNO3", "질산"),
+    ("H3PO4", "인산"),
+    # 고3 수준 3개
+    ("C6H6", "벤젠"),
+    ("C6H12O6", "포도당"),
+    ("CH3COOH", "아세트산"),
 ]
 
 # -------------------------
@@ -140,13 +145,13 @@ def reset_game():
 def main():
     st.set_page_config(page_title="화학 분자식 게임")
     st.title("⚗️ 화학 분자식 게임")
-    st.write("분자식과 이름을 맞히는 연습 게임입니다.")
+    st.write("쉬운 문제 20개와 고3 수준 문제 3개를 포함한 게임입니다.")
 
     with st.sidebar:
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(len(MOLECULES), 20), 10)
+        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(len(MOLECULES), 23), 10)
 
         if st.button("게임 초기화"):
             reset_game()
@@ -170,7 +175,6 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 선택지: index=None 사용으로 초기 선택 없음
     choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
 
     if choice is not None:
