@@ -124,7 +124,7 @@ def main():
 
         if st.button("게임 초기화"):
             reset_game()
-            st.experimental_rerun()
+            st.rerun()
 
     init_state()
 
@@ -157,7 +157,7 @@ def main():
             next_question()
         else:
             st.write(f"게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
-        st.experimental_rerun()
+        st.rerun()
 
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
 
