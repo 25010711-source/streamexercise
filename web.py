@@ -77,11 +77,11 @@ def make_question(pool: List[Tuple[str, str]], mode: str) -> Tuple[str, List[str
     """
     formula, name = random.choice(pool)
     if mode == "formula_to_name":
-        prompt = f"Which compound has the formula {formula}?"
+        prompt = f"다음 화학식의 물질 이름은 무엇인가요? {formula}" {formula}?"
         correct = name
         distractors = generate_distractors(correct, pool, mode)
     else:
-        prompt = f"What is the molecular formula of {name}?"
+        prompt = f"다음 물질의 분자식은 무엇인가요? {name}" {name}?"
         correct = formula
         distractors = generate_distractors(correct, pool, mode)
 
