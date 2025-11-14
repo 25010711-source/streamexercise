@@ -1,5 +1,5 @@
 """
-Streamlit 화학 분자식 게임 (한국어 버전) - 쉬운 문제 20개 + 고3 수준 3개
+Streamlit 화학 분자식 게임 (한국어 버전) - 쉬운 문제 30개 + 고3 수준 3개
 
 실행 방법:
 1. pip install streamlit
@@ -12,10 +12,10 @@ import time
 from typing import List, Tuple
 
 # -------------------------
-# 데이터: 쉬운 문제 20개 + 고3 수준 3개
+# 데이터: 쉬운 문제 30개 + 고3 수준 3개
 # -------------------------
 MOLECULES = [
-    # 쉬운 문제 20개
+    # 쉬운 문제 30개
     ("H2O", "물"),
     ("CO2", "이산화탄소"),
     ("O2", "산소"),
@@ -36,6 +36,16 @@ MOLECULES = [
     ("BaSO4", "황산바륨"),
     ("HNO3", "질산"),
     ("H3PO4", "인산"),
+    ("KCl", "염화칼륨"),
+    ("Na2CO3", "탄산나트륨"),
+    ("K2CO3", "탄산칼륨"),
+    ("MgSO4", "황산마그네슘"),
+    ("CaSO4", "황산칼슘"),
+    ("Al2O3", "산화알루미늄"),
+    ("Fe2O3", "산화철(III)"),
+    ("CuSO4", "황산구리(II)"),
+    ("ZnO", "산화아연"),
+    ("Na2SO4", "황산나트륨"),
     # 고3 수준 3개
     ("C6H6", "벤젠"),
     ("C6H12O6", "포도당"),
@@ -88,7 +98,8 @@ def init_state():
         "current_question": None,
         "used_questions": set(),
         "start_time": None,
-        "game_over": False
+        "game_over": False,
+        "game_started": False
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -130,10 +141,10 @@ def next_question():
 # -------------------------
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","start_time","game_over"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","start_time","game_over","game_started"]:
         if key == "used_questions":
             st.session_state[key] = set()
-        elif key == "game_over":
+        elif key == "game_over" or key == "game_started":
             st.session_state[key] = False
         else:
             st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
@@ -150,7 +161,7 @@ def main():
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(5, 23), 20)
+        st.session_state.questions_to_ask = st.slider("문제 수", 5, min(5, 33), 20)
 
         if st.button("게임 초기화"):
             reset_game()
@@ -158,17 +169,19 @@ def main():
 
     init_state()
 
-    if st.session_state.start_time is None:
-        st.session_state.start_time = time.time()
+    if not st.session_state.game_started:
+        if st.button("게임 시작"):
+            st.session_state.game_started = True
+            st.session_state.start_time = time.time()
+            next_question()
+            st.rerun()
+        return
 
     if st.session_state.game_over:
         elapsed = time.time() - st.session_state.start_time
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
         return
-
-    if st.session_state.current_question is None:
-        next_question()
 
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
