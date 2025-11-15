@@ -2,6 +2,8 @@
 Streamlit 화학 분자식 게임 (한국어 버전)
 - 사용자가 답을 선택하면 바로 다음 문제
 - 마지막 화면에서 정답/오답 확인
+- 초기 선택 없음
+- '다시 플레이' 버튼 안전하게 동작
 """
 
 import streamlit as st
@@ -148,7 +150,7 @@ def main():
 
         if st.button("게임 초기화"):
             reset_game()
-            st.experimental_rerun()
+            return  # st.experimental_rerun() 제거하고 return으로 화면 갱신
 
     # 게임 시작 전
     if not st.session_state.game_started:
@@ -178,7 +180,8 @@ def main():
 
         if st.button("다시 플레이"):
             reset_game()
-            st.experimental_rerun()
+            return  # 안전하게 화면 갱신
+
         return
 
     # 문제 표시
@@ -186,9 +189,9 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index + 1}/{st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 답 선택
+    # 답 선택: 초기 아무것도 선택되지 않음
     choice_key = f"choice_{st.session_state.question_index}"
-    choice = st.radio("정답 선택:", q["options"], key=choice_key)  # index 제거
+    choice = st.radio("정답 선택:", q["options"], key=choice_key)
 
     if choice is not None:
         st.session_state.total += 1
