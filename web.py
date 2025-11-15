@@ -109,7 +109,7 @@ def main():
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
         
-        # 슬라이더 수정: 최대 20, 초기값 10
+        # 슬라이더 최대값 20, 초기값 10
         st.session_state.questions_to_ask = st.slider(
             label="문제 수",
             min_value=5,
@@ -146,16 +146,27 @@ def main():
                     "정답": wa["correct_answer"]
                 } for wa in st.session_state.wrong_answers
             ])
-            # HTML 스타일 적용: padding + 글자 드래그 금지
+            # HTML 스타일 적용: padding + 글자 드래그 금지 + 문항번호 칸 좁게
             styled_html = df_wrong.to_html(index=False, escape=False)
             styled_html = styled_html.replace(
                 "<table border=\"1\" class=\"dataframe\">",
                 "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
-            ).replace(
-                "<th>", "<th style='padding: 8px; text-align: left;'>"
-            ).replace(
-                "<td>", "<td style='padding: 8px;'>"
             )
+
+            # 전체 th, td padding
+            styled_html = styled_html.replace("<th>", "<th style='padding: 8px; text-align: left;'>")
+            styled_html = styled_html.replace("<td>", "<td style='padding: 8px;'>")
+
+            # 문항 번호 칸 좁게 중앙정렬
+            styled_html = styled_html.replace(
+                "<th style='padding: 8px; text-align: left;'>문항 번호</th>",
+                "<th style='padding: 8px; text-align: center; width: 60px;'>문항 번호</th>"
+            )
+            # 모든 td 첫번째 열(문항 번호) 중앙 정렬, 너비 60px
+            styled_html = styled_html.replace(
+                "<td style='padding: 8px;'>", "<td style='padding: 8px;'>"
+            )
+            # st.markdown로 렌더링
             st.markdown(styled_html, unsafe_allow_html=True)
 
         return
