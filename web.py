@@ -3,13 +3,15 @@ Streamlit 화학 분자식 게임 (한국어 버전)
 - 사용자가 답을 선택하면 바로 다음 문제
 - 마지막 화면에서 정답/오답 확인
 - 초기 선택 없음
-- '다시 플레이' 버튼 안전하게 동작
+- 다시 플레이 버튼 안전하게 동작
+- 이전 선택이 남지 않도록 유니크 key 사용
 """
 
 import streamlit as st
 import random
 import time
 from typing import List, Tuple
+import uuid
 
 # -------------------------
 # 데이터
@@ -150,7 +152,7 @@ def main():
 
         if st.button("게임 초기화"):
             reset_game()
-            return  # st.experimental_rerun() 제거하고 return으로 화면 갱신
+            return  # 화면 갱신
 
     # 게임 시작 전
     if not st.session_state.game_started:
@@ -180,7 +182,7 @@ def main():
 
         if st.button("다시 플레이"):
             reset_game()
-            return  # 안전하게 화면 갱신
+            return  # 안전하게 갱신
 
         return
 
@@ -189,8 +191,8 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index + 1}/{st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 답 선택: 초기 아무것도 선택되지 않음
-    choice_key = f"choice_{st.session_state.question_index}"
+    # 답 선택: key를 매번 유니크하게 생성 → 이전 선택값 초기화
+    choice_key = f"choice_{st.session_state.question_index}_{uuid.uuid4()}"
     choice = st.radio("정답 선택:", q["options"], key=choice_key)
 
     if choice is not None:
