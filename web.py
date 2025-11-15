@@ -55,7 +55,6 @@ MOLECULES = [
 # -------------------------
 # 문제 생성
 # -------------------------
-
 def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
     choices = set()
     attempts = 0
@@ -86,7 +85,6 @@ def make_question(pool: List[Tuple[str, str]], mode: str):
 # -------------------------
 # 상태 초기화
 # -------------------------
-
 def init_state():
     defaults = {
         "score": 0,
@@ -97,6 +95,7 @@ def init_state():
         "mode": "formula_to_name",
         "current_question": None,
         "used_questions": set(),
+        "wrong_answers": [],  # 추가: 틀린 문제 기록
         "start_time": None,
         "game_over": False,
         "game_started": False
@@ -108,7 +107,6 @@ def init_state():
 # -------------------------
 # 다음 문제
 # -------------------------
-
 def next_question():
     pool = MOLECULES.copy()
     available_pool = [m for m in pool if m not in st.session_state.used_questions]
@@ -139,12 +137,13 @@ def next_question():
 # -------------------------
 # 게임 초기화
 # -------------------------
-
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","start_time","game_over","game_started"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","game_over","game_started"]:
         if key == "used_questions":
             st.session_state[key] = set()
-        elif key == "game_over" or key == "game_started":
+        elif key == "wrong_answers":
+            st.session_state[key] = []
+        elif key in ["game_over","game_started"]:
             st.session_state[key] = False
         else:
             st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
@@ -152,7 +151,6 @@ def reset_game():
 # -------------------------
 # 메인 UI
 # -------------------------
-
 def main():
     st.set_page_config(page_title="화학 분자식 게임")
     st.title("⚗️ 화학 분자식 게임")
@@ -181,6 +179,12 @@ def main():
         elapsed = time.time() - st.session_state.start_time
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
+
+        if st.session_state.wrong_answers:
+            st.subheader("❌ 틀린 문제 정답")
+            for wa in st.session_state.wrong_answers:
+                st.write(f"{wa['question']}")
+                st.write(f"➡️ 정답: {wa['correct_answer']} (선택한 답: {wa['your_answer']})")
         return
 
     q = st.session_state.current_question
@@ -198,6 +202,12 @@ def main():
         else:
             st.session_state.streak = 0
             st.error(f"오답입니다. 정답: {q['correct']}")
+            # 틀린 문제 기록
+            st.session_state.wrong_answers.append({
+                "question": q["prompt"],
+                "your_answer": choice,
+                "correct_answer": q["correct"]
+            })
 
         st.session_state.question_index += 1
 
