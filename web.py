@@ -133,19 +133,30 @@ def main():
 
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
+
+            # 데이터프레임 생성
             df_wrong = pd.DataFrame([
                 {
-                    "문항 번호": i + 1,
+                    "문항 번호": wa["index"],
                     "문제": wa["question"],
                     "선택한 답": wa["your_answer"],
                     "정답": wa["correct_answer"]
-                } for i, wa in enumerate(st.session_state.wrong_answers)
+                } for wa in st.session_state.wrong_answers
             ])
-            # 마크다운 스타일로 간격 띄움
-            st.markdown(
-                df_wrong.to_html(index=False, escape=False),
-                unsafe_allow_html=True
+
+            # HTML 스타일 적용: padding + 글자 드래그 금지
+            styled_html = df_wrong.to_html(index=False, escape=False)
+            styled_html = styled_html.replace(
+                "<table border=\"1\" class=\"dataframe\">",
+                "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
+            ).replace(
+                "<th>", "<th style='padding: 8px; text-align: left;'>"
+            ).replace(
+                "<td>", "<td style='padding: 8px;'>"
             )
+
+            st.markdown(styled_html, unsafe_allow_html=True)
+
         return
 
     q = st.session_state.current_question
@@ -163,7 +174,9 @@ def main():
         else:
             st.session_state.streak = 0
             st.error(f"오답입니다. 정답: {q['correct']}")
+            # 틀린 문제 기록 (문항 번호 추가)
             st.session_state.wrong_answers.append({
+                "index": st.session_state.question_index + 1,
                 "question": q["prompt"],
                 "your_answer": choice,
                 "correct_answer": q["correct"]
