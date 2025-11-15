@@ -123,7 +123,9 @@ def main():
 
     init_state()
 
+    # ----------------- 게임 시작 전 안내 -----------------
     if not st.session_state.game_started:
+        st.info("왼쪽 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
             st.session_state.game_started = True
             st.session_state.start_time = time.time()
@@ -131,6 +133,7 @@ def main():
             st.rerun()
         return
 
+    # ----------------- 게임 종료 후 -----------------
     if st.session_state.game_over:
         elapsed = time.time() - st.session_state.start_time
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
@@ -152,25 +155,19 @@ def main():
                 "<table border=\"1\" class=\"dataframe\">",
                 "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
             )
-
-            # 전체 th, td padding
             styled_html = styled_html.replace("<th>", "<th style='padding: 8px; text-align: left;'>")
             styled_html = styled_html.replace("<td>", "<td style='padding: 8px;'>")
-
-            # 문항 번호 칸 좁게 중앙정렬
+            # 문항번호 칸 좁게 중앙정렬
             styled_html = styled_html.replace(
                 "<th style='padding: 8px; text-align: left;'>문항 번호</th>",
                 "<th style='padding: 8px; text-align: center; width: 60px;'>문항 번호</th>"
             )
-            # 모든 td 첫번째 열(문항 번호) 중앙 정렬, 너비 60px
-            styled_html = styled_html.replace(
-                "<td style='padding: 8px;'>", "<td style='padding: 8px;'>"
-            )
-            # st.markdown로 렌더링
             st.markdown(styled_html, unsafe_allow_html=True)
 
+        st.info("게임을 다시 하려면 왼쪽 설정창에서 '게임 초기화' 버튼을 눌러주세요.")
         return
 
+    # ----------------- 게임 진행 중 -----------------
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
