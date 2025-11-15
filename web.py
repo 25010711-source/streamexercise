@@ -1,11 +1,3 @@
-"""
-Streamlit 화학 분자식 게임 (한국어 버전) - 쉬운 문제 30개 + 고3 수준 3개
-
-실행 방법:
-1. pip install streamlit
-2. streamlit run streamlit_chem_game.py
-"""
-
 import streamlit as st
 import random
 import time
@@ -51,9 +43,9 @@ MOLECULES = [
 ]
 
 # -------------------------
-# 오답 선택지 생성
+# 선택지 생성
 # -------------------------
-def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
+def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3):
     choices = set()
     while len(choices) < n:
         f, nm = random.choice(pool)
@@ -63,7 +55,7 @@ def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n
     return list(choices)
 
 # -------------------------
-# 세션 초기화
+# 상태 초기화
 # -------------------------
 def init_state():
     defaults = {
@@ -78,8 +70,8 @@ def init_state():
         "start_time": None,
         "game_over": False,
         "game_started": False,
-        "incorrect_answers": [],     
-        "processed_indices": set()  
+        "incorrect_answers": [],
+        "submitted": False
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -117,9 +109,10 @@ def next_question():
         "formula": formula,
         "name": name
     }
+    st.session_state.submitted = False
 
 # -------------------------
-# 게임 전체 리셋
+# 게임 리셋
 # -------------------------
 def reset_game():
     st.session_state.score = 0
@@ -132,7 +125,7 @@ def reset_game():
     st.session_state.game_over = False
     st.session_state.game_started = False
     st.session_state.incorrect_answers = []
-    st.session_state.processed_indices = set()
+    st.session_state.submitted = False
 
 # -------------------------
 # 메인 UI
@@ -143,38 +136,30 @@ def main():
 
     init_state()
 
-    # ----- 사이드바 -----
     with st.sidebar:
         st.header("설정")
-
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-
         max_q = len(MOLECULES)
         st.session_state.questions_to_ask = st.slider("문제 수", 5, max_q, 10)
-
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
 
-    # ----- 게임 시작 전 -----
     if not st.session_state.game_started:
         if st.button("게임 시작"):
             st.session_state.game_started = True
             st.session_state.start_time = time.time()
             next_question()
             st.rerun()
-
-        st.write("왼쪽에서 설정을 선택하고 **게임 시작** 버튼을 눌러주세요.")
+        st.write("왼쪽에서 설정을 선택하고 **게임 시작** 버튼을 누르세요.")
         return
 
-    # ----- 게임 종료 화면 -----
     if st.session_state.game_over:
         elapsed = time.time() - st.session_state.start_time
-
         st.subheader("🎉 게임 종료!")
-        st.write(f"### 점수: {st.session_state.score} / {st.session_state.total}")
-        st.write(f"### 걸린 시간: {elapsed:.1f}초")
+        st.write(f"점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"걸린 시간: {elapsed:.1f}초")
 
         if st.session_state.incorrect_answers:
             st.subheader("❌ 틀린 문제 목록")
@@ -184,27 +169,25 @@ def main():
                 st.markdown(f"- 정답: `{item['correct']}`")
                 st.markdown("---")
         else:
-            st.success("🎉 모든 문제를 맞췄습니다!")
+            st.success("✨ 모든 문제 맞춤!")
 
         if st.button("다시 플레이"):
             reset_game()
             st.rerun()
-
         return
 
     # ----- 문제 표시 -----
     q = st.session_state.current_question
-    st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
+    st.subheader(f"문제 {st.session_state.question_index + 1}/{st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
     choice_key = f"choice_{st.session_state.question_index}"
     choice = st.radio("정답 선택:", q["options"], key=choice_key)
 
-    # ----- 정답 처리 -----
-    if st.session_state.question_index not in st.session_state.processed_indices:
-        if choice:
+    # ----- 제출 버튼 -----
+    if st.button("제출"):
+        if not st.session_state.submitted:
             st.session_state.total += 1
-
             if choice == q["correct"]:
                 st.session_state.score += 1
                 st.session_state.streak += 1
@@ -215,20 +198,20 @@ def main():
                 st.session_state.incorrect_answers.append({
                     "prompt": q["prompt"],
                     "chosen": choice,
-                    "correct": q["correct"],
+                    "correct": q["correct"]
                 })
+            st.session_state.submitted = True
 
-            st.session_state.processed_indices.add(st.session_state.question_index)
+    # ----- 다음 문제 버튼 -----
+    if st.session_state.submitted:
+        if st.button("다음 문제"):
             st.session_state.question_index += 1
-
             if st.session_state.question_index >= st.session_state.questions_to_ask:
                 st.session_state.game_over = True
             else:
                 next_question()
-
             st.rerun()
 
-    # ----- 진행 바 -----
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
 
 if __name__ == "__main__":
