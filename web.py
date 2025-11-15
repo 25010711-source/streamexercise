@@ -10,6 +10,7 @@ import streamlit as st
 import random
 import time
 from typing import List, Tuple
+import pandas as pd  # 추가: 틀린 문제 표 출력용
 
 # -------------------------
 # 데이터: 쉬운 문제 30개 + 고3 수준 3개
@@ -95,7 +96,7 @@ def init_state():
         "mode": "formula_to_name",
         "current_question": None,
         "used_questions": set(),
-        "wrong_answers": [],  # 추가: 틀린 문제 기록
+        "wrong_answers": [],  # 틀린 문제 기록용
         "start_time": None,
         "game_over": False,
         "game_started": False
@@ -182,9 +183,15 @@ def main():
 
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
-            for wa in st.session_state.wrong_answers:
-                st.write(f"{wa['question']}")
-                st.write(f"➡️ 정답: {wa['correct_answer']} (선택한 답: {wa['your_answer']})")
+            # 데이터프레임으로 변환 후 표 출력
+            df_wrong = pd.DataFrame([
+                {
+                    "문제": wa["question"],
+                    "선택한 답": wa["your_answer"],
+                    "정답": wa["correct_answer"]
+                } for wa in st.session_state.wrong_answers
+            ])
+            st.table(df_wrong)
         return
 
     q = st.session_state.current_question
