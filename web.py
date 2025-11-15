@@ -148,7 +148,7 @@ def main():
 
         if st.button("게임 초기화"):
             reset_game()
-            st.rerun()
+            st.experimental_rerun()
 
     # 게임 시작 전
     if not st.session_state.game_started:
@@ -156,7 +156,6 @@ def main():
             st.session_state.game_started = True
             st.session_state.start_time = time.time()
             next_question()
-            st.experimental_rerun()
         st.write("왼쪽에서 설정 후 **게임 시작** 버튼을 눌러주세요.")
         return
 
@@ -187,12 +186,12 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index + 1}/{st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 답 선택하면 바로 다음 문제
+    # 답 선택
     choice_key = f"choice_{st.session_state.question_index}"
     choice = st.radio("정답 선택:", q["options"], key=choice_key, index=-1)
 
     if choice is not None and choice != "":
-        # 정답 여부 기록
+        # 정답/오답 기록
         st.session_state.total += 1
         if choice == q["correct"]:
             st.session_state.score += 1
@@ -203,13 +202,12 @@ def main():
                 "correct": q["correct"]
             })
 
-        # 다음 문제로 이동
+        # 다음 문제
         st.session_state.question_index += 1
         if st.session_state.question_index >= st.session_state.questions_to_ask:
             st.session_state.game_over = True
         else:
             next_question()
-        st.experimental_rerun()
 
     # 진행바
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
