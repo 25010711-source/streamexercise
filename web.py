@@ -188,10 +188,9 @@ def main():
 
     # 답 선택
     choice_key = f"choice_{st.session_state.question_index}"
-    choice = st.radio("정답 선택:", q["options"], key=choice_key, index=-1)
+    choice = st.radio("정답 선택:", q["options"], key=choice_key)  # index 제거
 
-    if choice is not None and choice != "":
-        # 정답/오답 기록
+    if choice is not None:
         st.session_state.total += 1
         if choice == q["correct"]:
             st.session_state.score += 1
