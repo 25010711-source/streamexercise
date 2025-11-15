@@ -1,6 +1,6 @@
 """
 Streamlit 화학 분자식 게임 (한국어 버전)
-- 사용자가 선택하면 바로 다음 문제
+- 사용자가 답을 선택하면 바로 다음 문제
 - 마지막 화면에서 정답/오답 확인
 """
 
@@ -156,7 +156,7 @@ def main():
             st.session_state.game_started = True
             st.session_state.start_time = time.time()
             next_question()
-            st.rerun()
+            st.experimental_rerun()
         st.write("왼쪽에서 설정 후 **게임 시작** 버튼을 눌러주세요.")
         return
 
@@ -179,7 +179,7 @@ def main():
 
         if st.button("다시 플레이"):
             reset_game()
-            st.rerun()
+            st.experimental_rerun()
         return
 
     # 문제 표시
@@ -189,9 +189,9 @@ def main():
 
     # 답 선택하면 바로 다음 문제
     choice_key = f"choice_{st.session_state.question_index}"
-    choice = st.radio("정답 선택:", q["options"], key=choice_key)
+    choice = st.radio("정답 선택:", q["options"], key=choice_key, index=-1)
 
-    if choice:
+    if choice is not None and choice != "":
         # 정답 여부 기록
         st.session_state.total += 1
         if choice == q["correct"]:
@@ -209,7 +209,7 @@ def main():
             st.session_state.game_over = True
         else:
             next_question()
-        st.rerun()
+        st.experimental_rerun()
 
     # 진행바
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
