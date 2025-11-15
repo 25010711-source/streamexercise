@@ -108,8 +108,15 @@ def main():
         st.header("설정")
         mode = st.radio("게임 모드", ("분자식 → 이름", "이름 → 분자식"))
         st.session_state.mode = "formula_to_name" if mode.startswith("분자식") else "name_to_formula"
-        # 슬라이더 최대값 20, 초기값 10
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, min_value=5, max_value=20, value=10)
+        
+        # 슬라이더 수정: 최대 20, 초기값 10
+        st.session_state.questions_to_ask = st.slider(
+            label="문제 수",
+            min_value=5,
+            max_value=20,
+            value=10
+        )
+
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
