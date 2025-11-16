@@ -1,6 +1,6 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
-사이드바 모드 선택: 버튼 + 줄바꿈
+2단계 사이드바 선택 구조: 게임 종류 → 모드
 """
 
 import streamlit as st
@@ -64,6 +64,7 @@ def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
         "questions_to_ask":10,
+        "game_type":"화학식 게임",
         "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "game_over":False, "game_started":False
@@ -114,22 +115,19 @@ def main():
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("게임 설정")
-        st.markdown("**게임 모드 선택**")
 
-        modes = [
-            ("molecule_to_name", "화학식 게임", "분자식 → 이름"),
-            ("name_to_molecule", "화학식 게임", "이름 → 분자식"),
-            ("periodic_to_name", "주기율표 게임", "원소기호 → 이름"),
-            ("name_to_periodic", "주기율표 게임", "이름 → 원소기호")
-        ]
+        # 1단계: 게임 종류 선택
+        game_type = st.radio("게임 종류 선택", ["화학식 게임", "주기율표 게임"])
+        st.session_state.game_type = game_type
 
-        selected_mode = st.session_state.get("mode", "molecule_to_name")
-        for code, title, desc in modes:
-            if st.button(f"{title}\n{desc}", key=code):
-                st.session_state.mode = code
-                selected_mode = code
+        # 2단계: 모드 선택 (게임 종류에 따라 다르게)
+        if game_type == "화학식 게임":
+            mode_label = st.radio("모드 선택", ["분자식 → 이름", "이름 → 분자식"])
+            st.session_state.mode = "molecule_to_name" if mode_label=="분자식 → 이름" else "name_to_molecule"
+        else:
+            mode_label = st.radio("모드 선택", ["원소기호 → 이름", "이름 → 원소기호"])
+            st.session_state.mode = "periodic_to_name" if mode_label=="원소기호 → 이름" else "name_to_periodic"
 
-        st.sidebar.markdown(f"현재 선택: **{selected_mode}**")
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
 
         if st.button("게임 초기화"):
