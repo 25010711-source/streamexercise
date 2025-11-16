@@ -111,8 +111,8 @@ def reset_game():
 # 메인 UI
 # -------------------------
 def main():
-    st.set_page_config(page_title="과학 학습 게임")
-    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
+    st.set_page_config(page_title="화학식/주기율표 게임")
+    st.title("🧪 화학식/주기율표 게임")
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
