@@ -1,5 +1,6 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
+사이드바 모드 선택 2줄 표시 (HTML 사용)
 """
 
 import streamlit as st
@@ -11,7 +12,6 @@ from typing import List, Tuple
 # -------------------------
 # 데이터
 # -------------------------
-
 MOLECULES = [
     ("H2O", "물"), ("CO2", "이산화탄소"), ("O2", "산소"), ("N2", "질소"),
     ("CH4", "메테인"), ("C2H6", "에테인"), ("NaCl", "염화나트륨"), ("HCl", "염화수소"),
@@ -116,22 +116,28 @@ def main():
         st.header("게임 설정")
         st.markdown("**게임 모드 선택**")
 
-        mode = st.radio(
+        # HTML 사용, 2줄 표시
+        mode_options = [
+            ("molecule_to_name", "화학식 게임<br><small>(분자식 → 이름)</small>"),
+            ("name_to_molecule", "화학식 게임<br><small>(이름 → 분자식)</small>"),
+            ("periodic_to_name", "주기율표 게임<br><small>(원소기호 → 이름)</small>"),
+            ("name_to_periodic", "주기율표 게임<br><small>(이름 → 원소기호)</small>")
+        ]
+
+        mode_selected = st.selectbox(
             "",
-            (
-                "화학식 게임\n  (분자식 → 이름)",
-                "화학식 게임\n  (이름 → 분자식)",
-                "주기율표 게임\n  (원소기호 → 이름)",
-                "주기율표 게임\n  (이름 → 원소기호)"
-            )
+            [o[1] for o in mode_options],
+            format_func=lambda x: x,
+            key="mode_select"
         )
 
-        if "분자식 → 이름" in mode: st.session_state.mode="molecule_to_name"
-        elif "이름 → 분자식" in mode: st.session_state.mode="name_to_molecule"
-        elif "원소기호 → 이름" in mode: st.session_state.mode="periodic_to_name"
-        else: st.session_state.mode="name_to_periodic"
+        # 선택에 따라 모드 저장
+        for code, label in mode_options:
+            if label == mode_selected:
+                st.session_state.mode = code
 
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
+
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
