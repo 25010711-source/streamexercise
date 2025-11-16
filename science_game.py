@@ -3,6 +3,7 @@ Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
 - 첫 번째 라디오: 게임 종류 선택 (화학식 / 주기율표)
 - 두 번째 라디오: 모드 선택 (각 게임별 모드 + 전체)
 - 전체 모드: 문제마다 랜덤으로 두 모드 섞어 출제
+- 게임 종료 후 시간 고정, 모드 변경 시 시간이 올라가는 문제 해결
 """
 
 import streamlit as st
@@ -54,7 +55,7 @@ def init_state():
         "score":0, "total":0, "streak":0, "question_index":0,
         "questions_to_ask":10, "game_type":"화학식 게임", "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
-        "start_time":None, "game_over":False, "game_started":False
+        "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False
     }
     for k,v in defaults.items():
         if k not in st.session_state:
@@ -100,7 +101,7 @@ def next_question():
 # 게임 초기화
 # -------------------------
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","game_over","game_started"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started"]:
         if key=="used_questions": st.session_state[key]=set()
         elif key=="wrong_answers": st.session_state[key]=[]
         elif key in ["game_over","game_started"]: st.session_state[key]=False
@@ -116,12 +117,9 @@ def main():
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("게임 설정")
-
-        # 1단계: 게임 종류 선택
         game_type = st.radio("게임 종류 선택", ["화학식 게임","주기율표 게임"])
         st.session_state.game_type = game_type
 
-        # 2단계: 모드 선택
         if game_type=="화학식 게임":
             mode_label = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"])
             if mode_label=="전체": st.session_state.mode="molecule_all"
@@ -153,9 +151,12 @@ def main():
 
     # ----------------- 게임 종료 -----------------
     if st.session_state.game_over:
-        elapsed=time.time()-st.session_state.start_time
+        # 게임 종료 시 elapsed_time 고정
+        if st.session_state.elapsed_time is None:
+            st.session_state.elapsed_time = time.time() - st.session_state.start_time
+
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
-        st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
+        st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
