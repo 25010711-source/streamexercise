@@ -106,8 +106,8 @@ def next_question():
 # 메인 UI
 # -------------------------
 def main():
-    st.set_page_config(page_title="과학 학습 게임")
-    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
+    st.set_page_config(page_title="화학식/주기율표 게임")
+    st.title("🧪 화학식/주기율표 게임")
 
     init_state()
     disabled_state = st.session_state.game_started
@@ -143,7 +143,7 @@ def main():
 
     # ----------------- 게임 시작 화면 -----------------
     if not st.session_state.game_started:
-        st.info("설정 확인 후 아래 버튼을 눌러 게임을 시작하세요.")
+        st.info("왼쪽 사이드바에서 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
             st.session_state.game_started=True
             st.session_state.start_time=time.time()
