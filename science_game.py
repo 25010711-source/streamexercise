@@ -1,6 +1,6 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
-사이드바 모드 선택: 라디오 버튼 + 줄바꿈
+사이드바 모드 선택: 버튼 + 줄바꿈
 """
 
 import streamlit as st
@@ -117,18 +117,19 @@ def main():
         st.markdown("**게임 모드 선택**")
 
         modes = [
-            ("molecule_to_name", "화학식 게임\n(분자식 → 이름)"),
-            ("name_to_molecule", "화학식 게임\n(이름 → 분자식)"),
-            ("periodic_to_name", "주기율표 게임\n(원소기호 → 이름)"),
-            ("name_to_periodic", "주기율표 게임\n(이름 → 원소기호)")
+            ("molecule_to_name", "화학식 게임", "분자식 → 이름"),
+            ("name_to_molecule", "화학식 게임", "이름 → 분자식"),
+            ("periodic_to_name", "주기율표 게임", "원소기호 → 이름"),
+            ("name_to_periodic", "주기율표 게임", "이름 → 원소기호")
         ]
 
-        mode_labels = [label for code, label in modes]
-        selected_label = st.radio("모드를 선택하세요", mode_labels, index=0)
-        for code, label in modes:
-            if label == selected_label:
+        selected_mode = st.session_state.get("mode", "molecule_to_name")
+        for code, title, desc in modes:
+            if st.button(f"{title}\n{desc}", key=code):
                 st.session_state.mode = code
+                selected_mode = code
 
+        st.sidebar.markdown(f"현재 선택: **{selected_mode}**")
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
 
         if st.button("게임 초기화"):
