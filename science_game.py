@@ -1,155 +1,203 @@
+"""
+Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
+"""
+
 import streamlit as st
 import random
+import time
+import pandas as pd
+from typing import List, Tuple
 
-# --------------------------
-# 데이터: 고1 수준 원소 기호/이름
-# --------------------------
-PERIODIC_DATA = [
+# -------------------------
+# 데이터
+# -------------------------
+
+MOLECULES = [
+    ("H2O", "물"), ("CO2", "이산화탄소"), ("O2", "산소"), ("N2", "질소"),
+    ("CH4", "메테인"), ("C2H6", "에테인"), ("NaCl", "염화나트륨"), ("HCl", "염화수소"),
+    ("NH3", "암모니아"), ("H2SO4", "황산"), ("CaCO3", "탄산칼슘"), ("NaHCO3", "탄산수소나트륨"),
+    ("KNO3", "질산칼륨"), ("NaOH", "수산화나트륨"), ("KOH", "수산화칼륨"), ("Ca(OH)2", "수산화칼슘"),
+    ("Mg(OH)2", "수산화마그네슘"), ("BaSO4", "황산바륨"), ("HNO3", "질산"), ("H3PO4", "인산"),
+    ("KCl", "염화칼륨"), ("Na2CO3", "탄산나트륨"), ("K2CO3", "탄산칼륨"), ("MgSO4", "황산마그네슘"),
+    ("CaSO4", "황산칼슘"), ("Al2O3", "산화알루미늄"), ("Fe2O3", "산화철(III)"), ("CuSO4", "황산구리(II)"),
+    ("ZnO", "산화아연"), ("Na2SO4", "황산나트륨"), ("C6H6", "벤젠"), ("C6H12O6", "포도당"), ("CH3COOH", "아세트산"),
+]
+
+PERIODIC = [
     ("H", "수소"), ("He", "헬륨"), ("Li", "리튬"), ("Be", "베릴륨"), ("B", "붕소"),
     ("C", "탄소"), ("N", "질소"), ("O", "산소"), ("F", "플루오린"), ("Ne", "네온"),
     ("Na", "나트륨"), ("Mg", "마그네슘"), ("Al", "알루미늄"), ("Si", "규소"), ("P", "인"),
     ("S", "황"), ("Cl", "염소"), ("Ar", "아르곤"), ("K", "칼륨"), ("Ca", "칼슘")
 ]
 
-# --------------------------
-# 기존 화학식 문제 데이터
-# --------------------------
-MOLECULE_DATA = [
-    ("H2O", "물"), ("CO2", "이산화탄소"), ("O2", "산소"), ("N2", "질소"), ("NH3", "암모니아"),
-    ("CH4", "메테인"), ("C2H5OH", "에탄올"), ("NaCl", "염화 나트륨"), ("HCl", "염산"), ("H2SO4", "황산"),
-    ("CaCO3", "탄산칼슘"), ("KCl", "염화칼륨"), ("NaHCO3", "탄산수소나트륨"), ("HNO3", "질산"), ("CO", "일산화탄소"),
-    ("SO2", "아황산가스"), ("C6H12O6", "포도당"), ("MgO", "산화마그네슘"), ("Fe2O3", "산화철"), ("NaOH", "수산화나트륨")
-]
+# -------------------------
+# 보기 생성
+# -------------------------
+def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
+    choices = set()
+    attempts = 0
+    while len(choices) < n and attempts < 100:
+        attempts += 1
+        f, nm = random.choice(pool)
+        candidate = nm if mode.endswith("_to_name") else f
+        if candidate != correct:
+            choices.add(candidate)
+    return list(choices)
 
+def make_question(pool: List[Tuple[str, str]], mode: str):
+    f, nm = random.choice(pool)
+    if mode.endswith("_to_name"):
+        prompt = f"다음의 이름을 맞히세요: {f}" if "periodic" in mode else f"다음 화학식의 이름을 맞히세요: {f}"
+        correct = nm
+    else:
+        prompt = f"다음의 기호를 맞히세요: {nm}" if "periodic" in mode else f"다음 물질의 화학식을 맞히세요: {nm}"
+        correct = f
+    distractors = generate_distractors(correct, pool, mode)
+    options = distractors + [correct]
+    random.shuffle(options)
+    return prompt, options, correct
 
-# --------------------------
-# Streamlit 기본 설정
-# --------------------------
-st.set_page_config(page_title="과학 게임", layout="wide")
+# -------------------------
+# 상태 초기화
+# -------------------------
+def init_state():
+    defaults = {
+        "score":0, "total":0, "streak":0, "question_index":0,
+        "questions_to_ask":10,
+        "mode":"molecule_to_name",
+        "current_question":None, "used_questions":set(), "wrong_answers":[],
+        "start_time":None, "game_over":False, "game_started":False
+    }
+    for k,v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k]=v
 
-# 드래그 방지 CSS
-st.markdown("""
-<style>
-* {
-    user-select: none;
-}
-table td:first-child {
-    width: 80px !important;
-}
-select {
-    padding-left: 20px;
-    padding-right: 20px;
-}
-</style>
-""", unsafe_allow_html=True)
+# -------------------------
+# 다음 문제
+# -------------------------
+def next_question():
+    pool = MOLECULES if "molecule" in st.session_state.mode else PERIODIC
+    available_pool = [m for m in pool if m not in st.session_state.used_questions]
+    if not available_pool:
+        st.session_state.used_questions.clear()
+        available_pool = pool.copy()
+    f, nm = random.choice(available_pool)
+    st.session_state.used_questions.add((f, nm))
+    if st.session_state.mode.endswith("_to_name"):
+        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in st.session_state.mode else f"다음 화학식의 이름은 무엇인가요? {f}"
+        correct = nm
+    else:
+        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in st.session_state.mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
+        correct = f
+    distractors = generate_distractors(correct, pool, st.session_state.mode)
+    options = distractors + [correct]
+    random.shuffle(options)
+    st.session_state.current_question = {"prompt":prompt,"options":options,"correct":correct}
 
+# -------------------------
+# 게임 초기화
+# -------------------------
+def reset_game():
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","game_over","game_started"]:
+        if key=="used_questions": st.session_state[key]=set()
+        elif key=="wrong_answers": st.session_state[key]=[]
+        elif key in ["game_over","game_started"]: st.session_state[key]=False
+        else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
 
-# --------------------------
-# 초기 session_state
-# --------------------------
-if "started" not in st.session_state:
-    st.session_state.started = False
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-if "user_answers" not in st.session_state:
-    st.session_state.user_answers = {}
-if "questions_to_ask" not in st.session_state:
-    st.session_state.questions_to_ask = 10
-if "game_type" not in st.session_state:
-    st.session_state.game_type = "화학식"
+# -------------------------
+# 메인 UI
+# -------------------------
+def main():
+    st.set_page_config(page_title="과학 학습 게임")
+    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
 
+    with st.sidebar:
+        st.header("설정")
+        mode = st.radio("게임 모드", (
+            "화학식 게임 — 물질 이름 맞히기 (분자식 → 이름)",
+            "화학식 게임 — 분자식 맞히기 (이름 → 분자식)",
+            "주기율표 게임 — 원소 이름 맞히기 (원소기호 → 이름)",
+            "주기율표 게임 — 원소기호 맞히기 (이름 → 원소기호)"
+        ))
 
-# --------------------------
-# 왼쪽: 설정 영역
-# --------------------------
-with st.sidebar:
-    st.header("게임 설정")
+        if "분자식 → 이름" in mode: st.session_state.mode="molecule_to_name"
+        elif "이름 → 분자식" in mode: st.session_state.mode="name_to_molecule"
+        elif "원소기호 → 이름" in mode: st.session_state.mode="periodic_to_name"
+        else: st.session_state.mode="name_to_periodic"
 
-    st.session_state.game_type = st.selectbox(
-        "게임 선택",
-        ["화학식 게임", "주기율표 게임"]
-    )
+        st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
+        if st.button("게임 초기화"):
+            reset_game()
+            st.rerun()
 
-    st.session_state.questions_to_ask = st.slider(
-        "문제 수 선택",
-        min_value=5,
-        max_value=20,
-        value=10
-    )
+    init_state()
 
-    if st.button("게임 초기화"):
-        st.session_state.started = False
-        st.session_state.questions = []
-        st.session_state.user_answers = {}
+    if not st.session_state.game_started:
+        st.info("왼쪽 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
+        if st.button("게임 시작"):
+            st.session_state.game_started=True
+            st.session_state.start_time=time.time()
+            next_question()
+            st.rerun()
+        return
+
+    if st.session_state.game_over:
+        elapsed = time.time()-st.session_state.start_time
+        st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
+
+        if st.session_state.wrong_answers:
+            st.subheader("❌ 틀린 문제 정답")
+            df_wrong = pd.DataFrame([
+                {"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]}
+                for wa in st.session_state.wrong_answers
+            ])
+            styled_html = df_wrong.to_html(index=False, escape=False)
+            styled_html = styled_html.replace(
+                "<table border=\"1\" class=\"dataframe\">",
+                "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
+            )
+            styled_html = styled_html.replace("<th>","<th style='padding: 8px; text-align: left;'>")
+            styled_html = styled_html.replace("<td>","<td style='padding: 8px;'>")
+            styled_html = styled_html.replace(
+                "<th style='padding: 8px; text-align: left;'>문항 번호</th>",
+                "<th style='padding: 8px; text-align: center; width: 60px;'>문항 번호</th>"
+            )
+            st.markdown(styled_html, unsafe_allow_html=True)
+
+        st.info("게임을 다시 하려면 왼쪽 설정창에서 '게임 초기화' 버튼을 눌러주세요.")
+        return
+
+    q = st.session_state.current_question
+    st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
+    st.write(q["prompt"])
+
+    choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
+
+    if choice is not None:
+        st.session_state.total+=1
+        if choice==q["correct"]:
+            st.session_state.score+=1
+            st.session_state.streak+=1
+            st.success("정답입니다!")
+        else:
+            st.session_state.streak=0
+            st.error(f"오답입니다. 정답: {q['correct']}")
+            st.session_state.wrong_answers.append({
+                "index":st.session_state.question_index+1,
+                "question":q["prompt"],
+                "your_answer":choice,
+                "correct_answer":q["correct"]
+            })
+
+        st.session_state.question_index+=1
+        if st.session_state.question_index>=st.session_state.questions_to_ask:
+            st.session_state.game_over=True
+        else:
+            next_question()
         st.rerun()
 
+    st.progress(st.session_state.question_index/st.session_state.questions_to_ask)
 
-# --------------------------
-# 메인 화면
-# --------------------------
-st.title("과학 학습 게임")
-
-if not st.session_state.started:
-
-    st.info("왼쪽 설정을 확인 후 시작해 주세요!")
-
-    if st.button("게임 시작", type="primary"):
-        if st.session_state.game_type == "화학식 게임":
-            dataset = MOLECULE_DATA
-        else:
-            dataset = PERIODIC_DATA
-
-        st.session_state.questions = random.sample(dataset, st.session_state.questions_to_ask)
-        st.session_state.started = True
-        st.session_state.user_answers = {}
-        st.rerun()
-
-else:
-    st.subheader(f"총 {st.session_state.questions_to_ask}문제")
-
-    for idx, (question, answer) in enumerate(st.session_state.questions, start=1):
-        user_key = f"q_{idx}"
-
-        if st.session_state.game_type == "화학식 게임":
-            q_text = f"{idx}. {question} 의 이름은?"
-        else:
-            q_text = f"{idx}. {question} 의 이름은?"
-
-        st.write(q_text)
-
-        st.session_state.user_answers[user_key] = st.text_input(
-            "",
-            key=user_key,
-            label_visibility="collapsed"
-        )
-
-    if st.button("채점하기", type="primary"):
-        correct = 0
-        results = []
-
-        for idx, (question, answer) in enumerate(st.session_state.questions, start=1):
-            key = f"q_{idx}"
-            user_ans = st.session_state.user_answers.get(key, "").strip()
-
-            is_correct = (user_ans == answer)
-            results.append((idx, question, user_ans, answer, is_correct))
-
-            if is_correct:
-                correct += 1
-
-        st.success(f"정답 개수: {correct} / {len(st.session_state.questions)}")
-
-        st.subheader("틀린 문제 정답 보기")
-
-        wrong = [r for r in results if not r[4]]
-
-        if len(wrong) == 0:
-            st.write("모든 문제를 맞았습니다!")
-        else:
-            table_md = "|문항|문제|입력한 답|정답|\n|---|---|---|---|\n"
-            for (num, q, ua, ans, _) in wrong:
-                table_md += f"|{num}|{q}|{ua}|{ans}|\n"
-
-            st.markdown(table_md)
-
-        st.info("왼쪽 설정창에서 '게임 초기화'를 눌러 다시 시작하세요!")
+if __name__=="__main__":
+    main()
