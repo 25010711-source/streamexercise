@@ -1,6 +1,6 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
-사이드바 모드 선택 2줄 표시 (HTML 사용)
+사이드바 모드 선택: 버튼 + 줄바꿈
 """
 
 import streamlit as st
@@ -116,25 +116,21 @@ def main():
         st.header("게임 설정")
         st.markdown("**게임 모드 선택**")
 
-        # HTML 사용, 2줄 표시
-        mode_options = [
-            ("molecule_to_name", "화학식 게임<br><small>(분자식 → 이름)</small>"),
-            ("name_to_molecule", "화학식 게임<br><small>(이름 → 분자식)</small>"),
-            ("periodic_to_name", "주기율표 게임<br><small>(원소기호 → 이름)</small>"),
-            ("name_to_periodic", "주기율표 게임<br><small>(이름 → 원소기호)</small>")
+        modes = [
+            ("molecule_to_name", "화학식 게임", "분자식 → 이름"),
+            ("name_to_molecule", "화학식 게임", "이름 → 분자식"),
+            ("periodic_to_name", "주기율표 게임", "원소기호 → 이름"),
+            ("name_to_periodic", "주기율표 게임", "이름 → 원소기호")
         ]
 
-        mode_selected = st.selectbox(
-            "",
-            [o[1] for o in mode_options],
-            format_func=lambda x: x,
-            key="mode_select"
-        )
+        mode_selected = st.session_state.get("mode", "molecule_to_name")
 
-        # 선택에 따라 모드 저장
-        for code, label in mode_options:
-            if label == mode_selected:
+        for code, title, desc in modes:
+            if st.sidebar.button(f"{title}\n{desc}", key=code):
                 st.session_state.mode = code
+                mode_selected = code
+
+        st.sidebar.markdown(f"현재 선택: **{mode_selected}**")
 
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
 
