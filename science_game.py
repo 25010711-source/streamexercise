@@ -1,6 +1,8 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
-전체 모드 포함: 화학식 전체 / 주기율표 전체
+- 첫 번째 라디오: 게임 종류 선택 (화학식 / 주기율표)
+- 두 번째 라디오: 모드 선택 (각 게임별 모드 + 전체)
+- 전체 모드: 문제마다 랜덤으로 두 모드 섞어 출제
 """
 
 import streamlit as st
@@ -33,7 +35,7 @@ PERIODIC = [
 # -------------------------
 # 보기 생성
 # -------------------------
-def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n: int = 3) -> List[str]:
+def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n: int=3) -> List[str]:
     choices = set()
     attempts = 0
     while len(choices) < n and attempts < 100:
@@ -44,28 +46,13 @@ def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n
             choices.add(candidate)
     return list(choices)
 
-def make_question(pool: List[Tuple[str, str]], mode: str):
-    f, nm = random.choice(pool)
-    if mode.endswith("_to_name"):
-        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in mode else f"다음 화학식의 이름은 무엇인가요? {f}"
-        correct = nm
-    else:
-        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
-        correct = f
-    distractors = generate_distractors(correct, pool, mode)
-    options = distractors + [correct]
-    random.shuffle(options)
-    return prompt, options, correct
-
 # -------------------------
 # 상태 초기화
 # -------------------------
 def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
-        "questions_to_ask":10,
-        "game_mode":"화학식 게임 전체",
-        "mode":"molecule_to_name",
+        "questions_to_ask":10, "game_type":"화학식 게임", "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "game_over":False, "game_started":False
     }
@@ -77,36 +64,37 @@ def init_state():
 # 다음 문제
 # -------------------------
 def next_question():
-    # 전체 모드일 경우 랜덤 모드 선택
-    if "화학식 전체" in st.session_state.game_mode:
-        st.session_state.mode = random.choice(["molecule_to_name","name_to_molecule"])
+    # 전체 모드이면 문제마다 랜덤 모드 선택
+    if st.session_state.mode=="molecule_all":
+        st.session_state.mode=random.choice(["molecule_to_name","name_to_molecule"])
         pool = MOLECULES
-    elif "주기율표 전체" in st.session_state.game_mode:
-        st.session_state.mode = random.choice(["periodic_to_name","name_to_periodic"])
+    elif st.session_state.mode=="periodic_all":
+        st.session_state.mode=random.choice(["periodic_to_name","name_to_periodic"])
         pool = PERIODIC
-    elif "화학식" in st.session_state.game_mode:
-        st.session_state.mode = "molecule_to_name" if "분자식 → 이름" in st.session_state.game_mode else "name_to_molecule"
+    elif st.session_state.mode in ["molecule_to_name","name_to_molecule"]:
         pool = MOLECULES
     else:
-        st.session_state.mode = "periodic_to_name" if "원소기호 → 이름" in st.session_state.game_mode else "name_to_periodic"
         pool = PERIODIC
 
     available_pool = [m for m in pool if m not in st.session_state.used_questions]
     if not available_pool:
         st.session_state.used_questions.clear()
         available_pool = pool.copy()
+
     f, nm = random.choice(available_pool)
-    st.session_state.used_questions.add((f, nm))
+    st.session_state.used_questions.add((f,nm))
+
     if st.session_state.mode.endswith("_to_name"):
         prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in st.session_state.mode else f"다음 화학식의 이름은 무엇인가요? {f}"
         correct = nm
     else:
         prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in st.session_state.mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
         correct = f
-    distractors = generate_distractors(correct, pool, st.session_state.mode)
-    options = distractors + [correct]
+
+    distractors = generate_distractors(correct,pool,st.session_state.mode)
+    options = distractors+[correct]
     random.shuffle(options)
-    st.session_state.current_question = {"prompt":prompt,"options":options,"correct":correct}
+    st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
 # -------------------------
 # 게임 초기화
@@ -129,20 +117,23 @@ def main():
     with st.sidebar:
         st.header("게임 설정")
 
-        game_mode = st.radio(
-            "게임 모드 선택",
-            [
-                "화학식 게임 전체",
-                "화학식 게임: 분자식 → 이름",
-                "화학식 게임: 이름 → 분자식",
-                "주기율표 게임 전체",
-                "주기율표 게임: 원소기호 → 이름",
-                "주기율표 게임: 이름 → 원소기호"
-            ]
-        )
-        st.session_state.game_mode = game_mode
+        # 1단계: 게임 종류 선택
+        game_type = st.radio("게임 종류 선택", ["화학식 게임","주기율표 게임"])
+        st.session_state.game_type = game_type
 
-        st.session_state.questions_to_ask = st.slider("문제 수", 5, 20, 10)
+        # 2단계: 모드 선택
+        if game_type=="화학식 게임":
+            mode_label = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"])
+            if mode_label=="전체": st.session_state.mode="molecule_all"
+            elif mode_label=="분자식 → 이름": st.session_state.mode="molecule_to_name"
+            else: st.session_state.mode="name_to_molecule"
+        else:
+            mode_label = st.radio("모드 선택", ["전체","원소기호 → 이름","이름 → 원소기호"])
+            if mode_label=="전체": st.session_state.mode="periodic_all"
+            elif mode_label=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
+            else: st.session_state.mode="name_to_periodic"
+
+        st.session_state.questions_to_ask=st.slider("문제 수",5,20,10)
 
         if st.button("게임 초기화"):
             reset_game()
@@ -150,6 +141,7 @@ def main():
 
     init_state()
 
+    # ----------------- 게임 시작 전 안내 -----------------
     if not st.session_state.game_started:
         st.info("왼쪽 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
@@ -159,25 +151,26 @@ def main():
             st.rerun()
         return
 
+    # ----------------- 게임 종료 -----------------
     if st.session_state.game_over:
-        elapsed = time.time()-st.session_state.start_time
+        elapsed=time.time()-st.session_state.start_time
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {elapsed:.1f}초")
 
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
-            df_wrong = pd.DataFrame([
+            df_wrong=pd.DataFrame([
                 {"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]}
                 for wa in st.session_state.wrong_answers
             ])
-            styled_html = df_wrong.to_html(index=False, escape=False)
-            styled_html = styled_html.replace(
+            styled_html=df_wrong.to_html(index=False, escape=False)
+            styled_html=styled_html.replace(
                 "<table border=\"1\" class=\"dataframe\">",
                 "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
             )
-            styled_html = styled_html.replace("<th>","<th style='padding: 8px; text-align: left;'>")
-            styled_html = styled_html.replace("<td>","<td style='padding: 8px;'>")
-            styled_html = styled_html.replace(
+            styled_html=styled_html.replace("<th>","<th style='padding: 8px; text-align: left;'>")
+            styled_html=styled_html.replace("<td>","<td style='padding: 8px;'>")
+            styled_html=styled_html.replace(
                 "<th style='padding: 8px; text-align: left;'>문항 번호</th>",
                 "<th style='padding: 8px; text-align: center; width: 60px;'>문항 번호</th>"
             )
@@ -186,11 +179,12 @@ def main():
         st.info("게임을 다시 하려면 왼쪽 설정창에서 '게임 초기화' 버튼을 눌러주세요.")
         return
 
-    q = st.session_state.current_question
-    st.subheader(f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}")
+    # ----------------- 게임 진행 중 -----------------
+    q=st.session_state.current_question
+    st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
+    choice=st.radio("정답 선택:",q["options"],index=None,key=f"choice_{st.session_state.question_index}")
 
     if choice is not None:
         st.session_state.total+=1
