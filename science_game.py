@@ -1,9 +1,9 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
 - 첫 번째 라디오: 게임 종류 선택 (화학식 / 주기율표)
-- 두 번째 라디오: 선택된 게임에 따라 모드 선택
-- 전체 모드: 문제마다 랜덤으로 두 모드 섞어 출제
-- 게임 종료 후 시간 고정
+- 두 번째 라디오: 선택된 게임에 따른 모드 선택
+- 전체 모드: 문제마다 랜덤 모드로 출제
+- 게임 시작 후 선택 불가, 종료 후 최종 점수/시간/틀린 문제/선택한 모드 표시
 """
 
 import streamlit as st
@@ -117,8 +117,12 @@ def main():
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("게임 설정")
+
+        # 세션 상태 초기화 먼저
+        init_state()
         disabled_state = st.session_state.game_started
 
+        # 게임 종류 선택
         game_type = st.radio(
             "게임 종류 선택",
             ["화학식 게임","주기율표 게임"],
@@ -127,6 +131,7 @@ def main():
         )
         st.session_state.game_type = game_type
 
+        # 모드 선택
         if game_type=="화학식 게임":
             mode_label = st.radio(
                 "모드 선택",
@@ -162,9 +167,7 @@ def main():
             reset_game()
             st.rerun()
 
-    init_state()
-
-    # ----------------- 게임 시작 전 안내 -----------------
+    # ----------------- 게임 시작 전 -----------------
     if not st.session_state.game_started:
         st.info("왼쪽 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
