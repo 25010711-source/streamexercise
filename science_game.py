@@ -34,21 +34,14 @@ PERIODIC = [
 ]
 
 # -------------------------
-# 사이드바 숨기기/보이기
+# CSS 적용 (사이드바 숨김/보이기)
 # -------------------------
-def hide_sidebar():
-    st.markdown("""
-        <style>
-        [data-testid="stSidebar"] {display: none;}
-        </style>
-    """, unsafe_allow_html=True)
-
-def show_sidebar():
-    st.markdown("""
-        <style>
-        [data-testid="stSidebar"] {display: block;}
-        </style>
-    """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+[data-testid="stSidebar"] {display: block;}
+.hide-sidebar [data-testid="stSidebar"] {display: none !important;}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------------
 # 보기 생성
@@ -72,7 +65,8 @@ def init_state():
         "score":0,"total":0,"streak":0,"question_index":0,
         "questions_to_ask":10,"game_type":"화학식 게임","mode":"molecule_to_name",
         "current_question":None,"used_questions":set(),"wrong_answers":[],
-        "start_time":None,"elapsed_time":None,"game_over":False,"game_started":False
+        "start_time":None,"elapsed_time":None,"game_over":False,"game_started":False,
+        "hide_sidebar":False
     }
     for k,v in defaults.items():
         if k not in st.session_state:
@@ -82,6 +76,7 @@ def init_state():
 # 다음 문제
 # -------------------------
 def next_question():
+    # 전체 모드는 랜덤 서브 모드 선택
     if st.session_state.mode=="molecule_all":
         current_mode = random.choice(["molecule_to_name","name_to_molecule"])
         pool = MOLECULES
@@ -116,12 +111,12 @@ def next_question():
 # 게임 초기화
 # -------------------------
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","hide_sidebar"]:
         if key=="used_questions": st.session_state[key]=set()
         elif key=="wrong_answers": st.session_state[key]=[]
         elif key in ["game_over","game_started"]: st.session_state[key]=False
+        elif key=="hide_sidebar": st.session_state[key]=False
         else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
-    show_sidebar()  # 재시작 시 사이드바 다시 보이게
 
 # -------------------------
 # 메인 UI
@@ -146,7 +141,7 @@ def main():
         )
         st.session_state.game_type = game_type
 
-        # 모드 선택 (임시 변수)
+        # 모드 선택
         if game_type=="화학식 게임":
             selected_mode = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"],
                                      index=["전체","분자식 → 이름","이름 → 분자식"].index(
@@ -166,12 +161,11 @@ def main():
 
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10,disabled=disabled_state)
 
-        # ---------------- 게임 시작 버튼 ----------------
         if not st.session_state.game_started and st.button("게임 시작"):
             st.session_state.game_started=True
             st.session_state.start_time=time.time()
-
-            # 선택 모드를 세션 상태에 반영
+            st.session_state.hide_sidebar=True  # 사이드바 숨김
+            # 선택 모드 반영
             if game_type=="화학식 게임":
                 if selected_mode=="전체": st.session_state.mode="molecule_all"
                 elif selected_mode=="분자식 → 이름": st.session_state.mode="molecule_to_name"
@@ -180,14 +174,16 @@ def main():
                 if selected_mode=="전체": st.session_state.mode="periodic_all"
                 elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
                 else: st.session_state.mode="name_to_periodic"
-
-            hide_sidebar()  # 게임 시작 시 사이드바 숨김
             next_question()
             st.rerun()
 
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
+
+    # ----------------- 사이드바 숨김/보이기 -----------------
+    if st.session_state.hide_sidebar:
+        st.markdown('<body class="hide-sidebar">', unsafe_allow_html=True)
 
     # ----------------- 게임 시작 전 안내 -----------------
     if not st.session_state.game_started:
