@@ -65,17 +65,16 @@ def init_state():
 # 다음 문제
 # -------------------------
 def next_question():
-    # 전체 모드이면 문제마다 랜덤 모드 선택
+    # 전체 모드일 때 문제용 랜덤 모드
     if st.session_state.mode=="molecule_all":
-        st.session_state.mode=random.choice(["molecule_to_name","name_to_molecule"])
+        current_mode = random.choice(["molecule_to_name","name_to_molecule"])
         pool = MOLECULES
     elif st.session_state.mode=="periodic_all":
-        st.session_state.mode=random.choice(["periodic_to_name","name_to_periodic"])
+        current_mode = random.choice(["periodic_to_name","name_to_periodic"])
         pool = PERIODIC
-    elif st.session_state.mode in ["molecule_to_name","name_to_molecule"]:
-        pool = MOLECULES
     else:
-        pool = PERIODIC
+        current_mode = st.session_state.mode
+        pool = MOLECULES if "molecule" in current_mode else PERIODIC
 
     available_pool = [m for m in pool if m not in st.session_state.used_questions]
     if not available_pool:
@@ -85,14 +84,14 @@ def next_question():
     f, nm = random.choice(available_pool)
     st.session_state.used_questions.add((f,nm))
 
-    if st.session_state.mode.endswith("_to_name"):
-        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in st.session_state.mode else f"다음 화학식의 이름은 무엇인가요? {f}"
+    if current_mode.endswith("_to_name"):
+        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in current_mode else f"다음 화학식의 이름은 무엇인가요? {f}"
         correct = nm
     else:
-        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in st.session_state.mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
+        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in current_mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
         correct = f
 
-    distractors = generate_distractors(correct,pool,st.session_state.mode)
+    distractors = generate_distractors(correct,pool,current_mode)
     options = distractors+[correct]
     random.shuffle(options)
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
@@ -117,8 +116,6 @@ def main():
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("게임 설정")
-
-        # 세션 상태 초기화 먼저
         init_state()
         disabled_state = st.session_state.game_started
 
@@ -131,50 +128,51 @@ def main():
         )
         st.session_state.game_type = game_type
 
-        # 모드 선택
+        # 모드 선택 (임시 변수)
         if game_type=="화학식 게임":
-            mode_label = st.radio(
-                "모드 선택",
-                ["전체","분자식 → 이름","이름 → 분자식"],
-                index=["전체","분자식 → 이름","이름 → 분자식"].index(
-                    {"molecule_all":"전체",
-                     "molecule_to_name":"분자식 → 이름",
-                     "name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
-                ),
-                disabled=disabled_state
-            )
-            if mode_label=="전체": st.session_state.mode="molecule_all"
-            elif mode_label=="분자식 → 이름": st.session_state.mode="molecule_to_name"
-            else: st.session_state.mode="name_to_molecule"
+            selected_mode = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"],
+                                     index=["전체","분자식 → 이름","이름 → 분자식"].index(
+                                         {"molecule_all":"전체",
+                                          "molecule_to_name":"분자식 → 이름",
+                                          "name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
+                                     ),
+                                     disabled=disabled_state)
         else:
-            mode_label = st.radio(
-                "모드 선택",
-                ["전체","원소기호 → 이름","이름 → 원소기호"],
-                index=["전체","원소기호 → 이름","이름 → 원소기호"].index(
-                    {"periodic_all":"전체",
-                     "periodic_to_name":"원소기호 → 이름",
-                     "name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
-                ),
-                disabled=disabled_state
-            )
-            if mode_label=="전체": st.session_state.mode="periodic_all"
-            elif mode_label=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
-            else: st.session_state.mode="name_to_periodic"
+            selected_mode = st.radio("모드 선택", ["전체","원소기호 → 이름","이름 → 원소기호"],
+                                     index=["전체","원소기호 → 이름","이름 → 원소기호"].index(
+                                         {"periodic_all":"전체",
+                                          "periodic_to_name":"원소기호 → 이름",
+                                          "name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
+                                     ),
+                                     disabled=disabled_state)
 
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
+
+        # ---------------- 게임 시작 버튼 ----------------
+        if not st.session_state.game_started and st.button("게임 시작"):
+            st.session_state.game_started=True
+            st.session_state.start_time=time.time()
+
+            # 선택 모드를 세션 상태에 반영
+            if game_type=="화학식 게임":
+                if selected_mode=="전체": st.session_state.mode="molecule_all"
+                elif selected_mode=="분자식 → 이름": st.session_state.mode="molecule_to_name"
+                else: st.session_state.mode="name_to_molecule"
+            else:
+                if selected_mode=="전체": st.session_state.mode="periodic_all"
+                elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
+                else: st.session_state.mode="name_to_periodic"
+
+            next_question()
+            st.rerun()
 
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
 
-    # ----------------- 게임 시작 전 -----------------
+    # ----------------- 게임 시작 전 안내 -----------------
     if not st.session_state.game_started:
         st.info("왼쪽 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
-        if st.button("게임 시작"):
-            st.session_state.game_started=True
-            st.session_state.start_time=time.time()
-            next_question()
-            st.rerun()
         return
 
     # ----------------- 게임 종료 -----------------
@@ -183,7 +181,7 @@ def main():
             st.session_state.elapsed_time = time.time() - st.session_state.start_time
 
         st.write(f"📝 게임 종류: {st.session_state.game_type}")
-        st.write(f"📝 선택한 모드: {mode_label}")
+        st.write(f"📝 선택한 모드: {selected_mode}")
         st.write(f"🎉 게임 종료! 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
