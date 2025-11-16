@@ -1,6 +1,6 @@
 """
 Streamlit 과학 학습 게임 (화학식 + 주기율표 통합)
-2단계 사이드바 선택 구조: 게임 종류 → 모드
+전체 모드 포함: 화학식 전체 / 주기율표 전체
 """
 
 import streamlit as st
@@ -47,10 +47,10 @@ def generate_distractors(correct: str, pool: List[Tuple[str, str]], mode: str, n
 def make_question(pool: List[Tuple[str, str]], mode: str):
     f, nm = random.choice(pool)
     if mode.endswith("_to_name"):
-        prompt = f"다음의 이름을 맞히세요: {f}" if "periodic" in mode else f"다음 화학식의 이름을 맞히세요: {f}"
+        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in mode else f"다음 화학식의 이름은 무엇인가요? {f}"
         correct = nm
     else:
-        prompt = f"다음의 기호를 맞히세요: {nm}" if "periodic" in mode else f"다음 물질의 화학식을 맞히세요: {nm}"
+        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
         correct = f
     distractors = generate_distractors(correct, pool, mode)
     options = distractors + [correct]
@@ -64,7 +64,7 @@ def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
         "questions_to_ask":10,
-        "game_type":"화학식 게임",
+        "game_mode":"화학식 게임 전체",
         "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "game_over":False, "game_started":False
@@ -77,7 +77,20 @@ def init_state():
 # 다음 문제
 # -------------------------
 def next_question():
-    pool = MOLECULES if "molecule" in st.session_state.mode else PERIODIC
+    # 전체 모드일 경우 랜덤 모드 선택
+    if "화학식 전체" in st.session_state.game_mode:
+        st.session_state.mode = random.choice(["molecule_to_name","name_to_molecule"])
+        pool = MOLECULES
+    elif "주기율표 전체" in st.session_state.game_mode:
+        st.session_state.mode = random.choice(["periodic_to_name","name_to_periodic"])
+        pool = PERIODIC
+    elif "화학식" in st.session_state.game_mode:
+        st.session_state.mode = "molecule_to_name" if "분자식 → 이름" in st.session_state.game_mode else "name_to_molecule"
+        pool = MOLECULES
+    else:
+        st.session_state.mode = "periodic_to_name" if "원소기호 → 이름" in st.session_state.game_mode else "name_to_periodic"
+        pool = PERIODIC
+
     available_pool = [m for m in pool if m not in st.session_state.used_questions]
     if not available_pool:
         st.session_state.used_questions.clear()
@@ -116,25 +129,25 @@ def main():
     with st.sidebar:
         st.header("게임 설정")
 
-        # 1단계: 게임 종류 선택
-        game_type = st.radio("게임 종류 선택", ["화학식 게임", "주기율표 게임"])
-        st.session_state.game_type = game_type
+        game_mode = st.radio(
+            "게임 모드 선택",
+            [
+                "화학식 게임 전체",
+                "화학식 게임: 분자식 → 이름",
+                "화학식 게임: 이름 → 분자식",
+                "주기율표 게임 전체",
+                "주기율표 게임: 원소기호 → 이름",
+                "주기율표 게임: 이름 → 원소기호"
+            ]
+        )
+        st.session_state.game_mode = game_mode
 
-        # 2단계: 모드 선택 (게임 종류에 따라 다르게)
-        if game_type == "화학식 게임":
-            mode_label = st.radio("모드 선택", ["분자식 → 이름", "이름 → 분자식"])
-            st.session_state.mode = "molecule_to_name" if mode_label=="분자식 → 이름" else "name_to_molecule"
-        else:
-            mode_label = st.radio("모드 선택", ["원소기호 → 이름", "이름 → 원소기호"])
-            st.session_state.mode = "periodic_to_name" if mode_label=="원소기호 → 이름" else "name_to_periodic"
-
-        st.session_state.questions_to_ask = st.slider("문제 수",5,20,10)
+        st.session_state.questions_to_ask = st.slider("문제 수", 5, 20, 10)
 
         if st.button("게임 초기화"):
             reset_game()
             st.rerun()
 
-    # ---------------- Main ----------------
     init_state()
 
     if not st.session_state.game_started:
