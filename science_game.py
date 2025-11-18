@@ -1,20 +1,9 @@
-"""
-Streamlit 과학 학습 게임 (화학식 + 주기율표 통합 + SQLite 순위 저장)
-- 첫 번째 라디오: 게임 종류 선택 (화학식 / 주기율표)
-- 두 번째 라디오: 선택된 게임에 따른 모드 선택
-- 전체 모드: 문제마다 랜덤 모드로 출제
-- 게임 시작/재시작 버튼 화면 중앙 표시
-- 만점만 SQLite에 저장, 10등까지만 표시
-"""
-
 import streamlit as st
 import random
 import time
 import pandas as pd
 import sqlite3
 from typing import List, Tuple
-
-DB_PATH = "science_game_rank.db"
 
 # -------------------------
 # 데이터
@@ -38,8 +27,10 @@ PERIODIC = [
 ]
 
 # -------------------------
-# SQLite 관련
+# DB 관련
 # -------------------------
+DB_PATH = "ranking.db"
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -47,43 +38,29 @@ def init_db():
         CREATE TABLE IF NOT EXISTS ranking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
-            score INTEGER,
-            elapsed REAL,
             game_type TEXT,
             mode TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            score INTEGER,
+            elapsed REAL
         )
     """)
     conn.commit()
     conn.close()
 
-def save_rank(name, score, elapsed, game_type, mode):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO ranking (name, score, elapsed, game_type, mode) VALUES (?, ?, ?, ?, ?)",
-              (name, score, elapsed, game_type, mode))
-    conn.commit()
-    conn.close()
+def save_ranking(name, game_type, mode, score, elapsed):
+    if score == st.session_state.questions_to_ask:  # 만점만 저장
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("INSERT INTO ranking (name, game_type, mode, score, elapsed) VALUES (?,?,?,?,?)",
+                  (name, game_type, mode, score, elapsed))
+        conn.commit()
+        conn.close()
 
 def load_ranking():
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT name, score, elapsed, game_type, mode, timestamp FROM ranking ORDER BY score DESC, elapsed ASC", conn)
+    df = pd.read_sql("SELECT * FROM ranking ORDER BY score DESC, elapsed ASC", conn)
     conn.close()
     return df
-
-# -------------------------
-# 보기 생성
-# -------------------------
-def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n: int=3) -> List[str]:
-    choices = set()
-    attempts = 0
-    while len(choices) < n and attempts < 100:
-        attempts += 1
-        f, nm = random.choice(pool)
-        candidate = nm if mode.endswith("_to_name") else f
-        if candidate != correct:
-            choices.add(candidate)
-    return list(choices)
 
 # -------------------------
 # 상태 초기화
@@ -107,8 +84,19 @@ def reset_game():
         else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
 
 # -------------------------
-# 다음 문제
+# 문제 생성
 # -------------------------
+def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n: int=3) -> List[str]:
+    choices = set()
+    attempts = 0
+    while len(choices) < n and attempts < 100:
+        attempts += 1
+        f, nm = random.choice(pool)
+        candidate = nm if mode.endswith("_to_name") else f
+        if candidate != correct:
+            choices.add(candidate)
+    return list(choices)
+
 def next_question():
     if st.session_state.mode=="molecule_all":
         current_mode = random.choice(["molecule_to_name","name_to_molecule"])
@@ -141,46 +129,69 @@ def next_question():
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
 # -------------------------
-# 메인 UI
+# 순위표 표시
+# -------------------------
+def show_ranking_sidebar():
+    st.sidebar.subheader("🏆 순위표 (게임별 10등)")
+    df = load_ranking()
+    if not df.empty:
+        df_mol = df[df["game_type"]=="화학식 게임"].head(10)
+        df_per = df[df["game_type"]=="주기율표 게임"].head(10)
+        if not df_mol.empty:
+            st.sidebar.markdown("**화학식 게임**")
+            st.sidebar.table(df_mol[["name","score","elapsed","mode"]])
+        if not df_per.empty:
+            st.sidebar.markdown("**주기율표 게임**")
+            st.sidebar.table(df_per[["name","score","elapsed","mode"]])
+
+def show_ranking_main():
+    st.subheader("🏆 순위표 (게임별 10등)")
+    df = load_ranking()
+    if not df.empty:
+        df_mol = df[df["game_type"]=="화학식 게임"].head(10)
+        df_per = df[df["game_type"]=="주기율표 게임"].head(10)
+        if not df_mol.empty:
+            st.markdown("**화학식 게임**")
+            st.table(df_mol[["name","score","elapsed","mode"]])
+        if not df_per.empty:
+            st.markdown("**주기율표 게임**")
+            st.table(df_per[["name","score","elapsed","mode"]])
+
+# -------------------------
+# 메인
 # -------------------------
 def main():
-    st.set_page_config(page_title="화학식/주기율표 게임")
-    st.title("🧪 화학식/주기율표 게임")
-
+    st.set_page_config(page_title="과학 학습 게임")
+    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
     init_db()
     init_state()
+    show_ranking_sidebar()
+
     disabled_state = st.session_state.game_started
 
-    # ---------------- Sidebar: 설정만 ----------------
+    # ---------------- Sidebar 설정 ----------------
     with st.sidebar:
         st.header("게임 설정")
-        game_type = st.radio(
-            "게임 종류 선택",
-            ["화학식 게임","주기율표 게임"],
-            index=0 if st.session_state.game_type=="화학식 게임" else 1,
-            disabled=disabled_state
-        )
+        game_type = st.radio("게임 종류 선택", ["화학식 게임","주기율표 게임"],
+                             index=0 if st.session_state.game_type=="화학식 게임" else 1,
+                             disabled=disabled_state)
         st.session_state.game_type = game_type
 
         if game_type=="화학식 게임":
             selected_mode = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"],
                                      index=["전체","분자식 → 이름","이름 → 분자식"].index(
-                                         {"molecule_all":"전체",
-                                          "molecule_to_name":"분자식 → 이름",
-                                          "name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
+                                         {"molecule_all":"전체","molecule_to_name":"분자식 → 이름","name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
                                      ),
                                      disabled=disabled_state)
         else:
             selected_mode = st.radio("모드 선택", ["전체","원소기호 → 이름","이름 → 원소기호"],
                                      index=["전체","원소기호 → 이름","이름 → 원소기호"].index(
-                                         {"periodic_all":"전체",
-                                          "periodic_to_name":"원소기호 → 이름",
-                                          "name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
+                                         {"periodic_all":"전체","periodic_to_name":"원소기호 → 이름","name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
                                      ),
                                      disabled=disabled_state)
-        st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
+        st.session_state.questions_to_ask = st.slider("문제 수",5,20,10,disabled=disabled_state)
 
-    # ----------------- 게임 시작 화면 -----------------
+    # ---------------- 게임 시작 화면 ----------------
     if not st.session_state.game_started:
         st.info("왼쪽 사이드바에서 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
@@ -198,7 +209,7 @@ def main():
             st.rerun()
         return
 
-    # ----------------- 게임 종료 화면 -----------------
+    # ---------------- 게임 종료 화면 ----------------
     if st.session_state.game_over:
         if st.session_state.elapsed_time is None:
             st.session_state.elapsed_time = time.time() - st.session_state.start_time
@@ -208,46 +219,24 @@ def main():
         st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
-        # 틀린 문제
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
             df_wrong=pd.DataFrame([{"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]} for wa in st.session_state.wrong_answers])
-            styled_html=df_wrong.to_html(index=False, escape=False)
-            styled_html=styled_html.replace(
-                "<table border=\"1\" class=\"dataframe\">",
-                "<table style='border-collapse: collapse; width: 100%; table-layout: fixed; user-select: none;'>"
-            )
-            styled_html=styled_html.replace("<th>","<th style='padding: 8px; text-align: left;'>")
-            styled_html=styled_html.replace("<td>","<td style='padding: 8px;'>")
-            styled_html=styled_html.replace(
-                "<th style='padding: 8px; text-align: left;'>문항 번호</th>",
-                "<th style='padding: 8px; text-align: center; width: 60px;'>문항 번호</th>"
-            )
-            st.markdown(styled_html, unsafe_allow_html=True)
+            st.table(df_wrong)
 
-        # 순위 저장 (만점만)
-        name = st.text_input("이름을 입력하세요", "")
-        if st.button("기록 저장"):
-            if st.session_state.score == st.session_state.questions_to_ask:
-                save_rank(name, st.session_state.score, st.session_state.elapsed_time, st.session_state.game_type, selected_mode)
-                st.success("만점 기록이 저장되었습니다!")
-            else:
-                st.warning("만점이 아닙니다. 기록이 저장되지 않습니다.")
+        # 순위 저장
+        name = st.text_input("이름 입력 (순위 저장용)", value="익명")
+        if st.button("순위 저장"):
+            save_ranking(name, st.session_state.game_type, selected_mode, st.session_state.score, st.session_state.elapsed_time)
+            st.success("순위가 저장되었습니다!")
+            show_ranking_main()
 
-        # 순위표
-        st.subheader("🏆 순위표 (10등까지만)")
-        df = load_ranking()
-        if not df.empty:
-            df = df.head(10)
-            st.table(df)
-
-        # 재시작 버튼
         if st.button("게임 재시작"):
             reset_game()
             st.rerun()
         return
 
-    # ----------------- 게임 진행 -----------------
+    # ---------------- 게임 진행 ----------------
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
@@ -273,12 +262,12 @@ def main():
         st.session_state.question_index += 1
         if st.session_state.question_index >= st.session_state.questions_to_ask:
             st.session_state.game_over = True
-            st.session_state.elapsed_time = time.time() - st.session_state.start_time
         else:
             next_question()
         st.rerun()
 
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
+
 
 if __name__=="__main__":
     main()
