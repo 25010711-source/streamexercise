@@ -58,8 +58,10 @@ def save_ranking(name, game_type, mode, score, elapsed):
 
 def load_ranking():
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql("SELECT * FROM ranking ORDER BY score DESC, elapsed ASC", conn)
+    df = pd.read_sql("SELECT * FROM ranking", conn)
     conn.close()
+    # 점수 내림차순, 점수 동일 시 시간 오름차순
+    df = df.sort_values(by=["score","elapsed"], ascending=[False,True])
     return df
 
 # -------------------------
@@ -216,7 +218,7 @@ def main():
 
         st.write(f"📝 게임 종류: {st.session_state.game_type}")
         st.write(f"📝 선택한 모드: {selected_mode}")
-        st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.questions_to_ask}")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
         if st.session_state.wrong_answers:
@@ -224,12 +226,15 @@ def main():
             df_wrong=pd.DataFrame([{"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]} for wa in st.session_state.wrong_answers])
             st.table(df_wrong)
 
-        # 순위 저장
-        name = st.text_input("이름 입력 (순위 저장용)", value="익명")
-        if st.button("순위 저장"):
-            save_ranking(name, st.session_state.game_type, selected_mode, st.session_state.score, st.session_state.elapsed_time)
-            st.success("순위가 저장되었습니다!")
-            show_ranking_main()
+        # 만점이 아니면 이름 입력 비활성화
+        if st.session_state.score == st.session_state.questions_to_ask:
+            name = st.text_input("이름 입력 (순위 저장용)", value="익명")
+            if st.button("순위 저장"):
+                save_ranking(name, st.session_state.game_type, selected_mode, st.session_state.score, st.session_state.elapsed_time)
+                st.success("순위가 저장되었습니다!")
+                show_ranking_main()
+        else:
+            st.text("⚠️ 만점이 아니면 순위에 저장할 수 없습니다.")
 
         if st.button("게임 재시작"):
             reset_game()
@@ -267,7 +272,6 @@ def main():
         st.rerun()
 
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
-
 
 if __name__=="__main__":
     main()
