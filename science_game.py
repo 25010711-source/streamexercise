@@ -5,9 +5,9 @@ import pandas as pd
 import sqlite3
 from typing import List, Tuple
 
-# -------------------------
-# 데이터
-# -------------------------
+DB_PATH = "ranking.db"
+
+# ------------------------- 데이터 -------------------------
 MOLECULES = [
     ("H2O", "물"), ("CO2", "이산화탄소"), ("O2", "산소"), ("N2", "질소"),
     ("CH4", "메테인"), ("C2H6", "에테인"), ("NaCl", "염화나트륨"), ("HCl", "염화수소"),
@@ -26,12 +26,28 @@ PERIODIC = [
     ("S", "황"), ("Cl", "염소"), ("Ar", "아르곤"), ("K", "칼륨"), ("Ca", "칼슘")
 ]
 
-# -------------------------
-# DB 초기화 및 함수
-# -------------------------
-DB_PATH = "ranking.db"
+# ------------------------- DB 관련 -------------------------
+def save_score(game_type, player_name, score, elapsed_time):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS ranking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_type TEXT,
+            player_name TEXT,
+            score INTEGER,
+            elapsed_time REAL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        INSERT INTO ranking (game_type, player_name, score, elapsed_time)
+        VALUES (?, ?, ?, ?)
+    """, (game_type, player_name, score, elapsed_time))
+    conn.commit()
+    conn.close()
 
-def init_db():
+def get_ranking(game_type, limit=10):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
@@ -45,19 +61,6 @@ def init_db():
         )
     """)
     conn.commit()
-    conn.close()
-
-def save_score(game_type, player_name, score, elapsed_time):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("INSERT INTO ranking (game_type, player_name, score, elapsed_time) VALUES (?, ?, ?, ?)",
-                (game_type, player_name, score, elapsed_time))
-    conn.commit()
-    conn.close()
-
-def get_ranking(game_type, limit=10):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
     cur.execute("""
         SELECT player_name, score, elapsed_time
         FROM ranking
@@ -69,9 +72,7 @@ def get_ranking(game_type, limit=10):
     conn.close()
     return rows
 
-# -------------------------
-# 보기 생성
-# -------------------------
+# ------------------------- 보기 생성 -------------------------
 def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n: int=3) -> List[str]:
     choices = set()
     attempts = 0
@@ -83,31 +84,27 @@ def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n:
             choices.add(candidate)
     return list(choices)
 
-# -------------------------
-# 상태 초기화
-# -------------------------
+# ------------------------- 상태 초기화 -------------------------
 def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
         "questions_to_ask":10, "game_type":"화학식 게임", "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False,
-        "player_name_saved":False
+        "player_name_entered":False
     }
     for k,v in defaults.items():
         if k not in st.session_state:
             st.session_state[k]=v
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","player_name_saved"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","player_name_entered"]:
         if key=="used_questions": st.session_state[key]=set()
         elif key=="wrong_answers": st.session_state[key]=[]
-        elif key in ["game_over","game_started","player_name_saved"]: st.session_state[key]=False
+        elif key in ["game_over","game_started","player_name_entered"]: st.session_state[key]=False
         else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
 
-# -------------------------
-# 다음 문제
-# -------------------------
+# ------------------------- 다음 문제 -------------------------
 def next_question():
     if st.session_state.mode=="molecule_all":
         current_mode = random.choice(["molecule_to_name","name_to_molecule"])
@@ -128,68 +125,68 @@ def next_question():
     st.session_state.used_questions.add((f,nm))
 
     if current_mode.endswith("_to_name"):
-        prompt = f"다음 화학식의 이름은 무엇인가요? {f}" if "molecule" in current_mode else f"다음 원소의 이름은 무엇인가요? {f}"
+        prompt = f"다음의 이름은 무엇인가요? {f}" if "periodic" in current_mode else f"다음 화학식의 이름은 무엇인가요? {f}"
         correct = nm
     else:
-        prompt = f"다음 화학식은 무엇인가요? {nm}" if "molecule" in current_mode else f"다음 원소 기호는 무엇인가요? {nm}"
+        prompt = f"다음 기호는 무엇인가요? {nm}" if "periodic" in current_mode else f"다음 물질의 화학식은 무엇인가요? {nm}"
         correct = f
 
-    distractors = generate_distractors(correct, pool, current_mode)
-    options = distractors + [correct]
+    distractors = generate_distractors(correct,pool,current_mode)
+    options = distractors+[correct]
     random.shuffle(options)
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
-# -------------------------
-# 메인
-# -------------------------
+# ------------------------- 메인 -------------------------
 def main():
-    init_db()
-    init_state()
-    st.set_page_config(page_title="화학식/주기율표 게임")
-    st.title("🧪 화학식/주기율표 게임")
+    st.set_page_config(page_title="과학 학습 게임")
+    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
 
+    init_state()
     disabled_state = st.session_state.game_started
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
+        st.header("순위표")
+        st.subheader("화학식 게임")
+        df_m = pd.DataFrame(get_ranking("화학식 게임"), columns=["이름","점수","시간(초)"])
+        st.table(df_m)
+        st.subheader("주기율표 게임")
+        df_p = pd.DataFrame(get_ranking("주기율표 게임"), columns=["이름","점수","시간(초)"])
+        st.table(df_p)
+
         st.header("게임 설정")
-        game_type = st.radio("게임 종류 선택", ["화학식 게임","주기율표 게임"],
-                             index=0 if st.session_state.game_type=="화학식 게임" else 1,
-                             disabled=disabled_state)
+        game_type = st.radio(
+            "게임 종류 선택",
+            ["화학식 게임","주기율표 게임"],
+            index=0 if st.session_state.game_type=="화학식 게임" else 1,
+            disabled=disabled_state
+        )
         st.session_state.game_type = game_type
 
         if game_type=="화학식 게임":
             selected_mode = st.radio("모드 선택", ["전체","분자식 → 이름","이름 → 분자식"],
                                      index=["전체","분자식 → 이름","이름 → 분자식"].index(
-                                         {"molecule_all":"전체","molecule_to_name":"분자식 → 이름","name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
+                                         {"molecule_all":"전체",
+                                          "molecule_to_name":"분자식 → 이름",
+                                          "name_to_molecule":"이름 → 분자식"}.get(st.session_state.mode,"전체")
                                      ),
                                      disabled=disabled_state)
         else:
             selected_mode = st.radio("모드 선택", ["전체","원소기호 → 이름","이름 → 원소기호"],
                                      index=["전체","원소기호 → 이름","이름 → 원소기호"].index(
-                                         {"periodic_all":"전체","periodic_to_name":"원소기호 → 이름","name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
+                                         {"periodic_all":"전체",
+                                          "periodic_to_name":"원소기호 → 이름",
+                                          "name_to_periodic":"이름 → 원소기호"}.get(st.session_state.mode,"전체")
                                      ),
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
-        # 사이드바 순위
-        st.subheader("🏆 화학식 게임 순위 (상위 10)")
-        df1 = pd.DataFrame(get_ranking("화학식 게임"), columns=["이름","점수","시간(초)"])
-        if not df1.empty:
-            st.table(df1)
-
-        st.subheader("🏆 주기율표 게임 순위 (상위 10)")
-        df2 = pd.DataFrame(get_ranking("주기율표 게임"), columns=["이름","점수","시간(초)"])
-        if not df2.empty:
-            st.table(df2)
-
-    # ----------------- 게임 시작 전 -----------------
+    # ----------------- 게임 시작 -----------------
     if not st.session_state.game_started:
-        st.info("왼쪽 사이드바에서 설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
+        st.info("설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
-            st.session_state.game_started = True
-            st.session_state.start_time = time.time()
-            # 선택 모드 반영
+            st.session_state.game_started=True
+            st.session_state.start_time=time.time()
             if game_type=="화학식 게임":
                 if selected_mode=="전체": st.session_state.mode="molecule_all"
                 elif selected_mode=="분자식 → 이름": st.session_state.mode="molecule_to_name"
@@ -208,24 +205,22 @@ def main():
             st.session_state.elapsed_time = time.time() - st.session_state.start_time
 
         st.write(f"📝 게임 종류: {st.session_state.game_type}")
-        st.write(f"📝 선택한 모드: {selected_mode}")
         st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
-        if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_saved:
-            player_name = st.text_input("이름 입력 (만점일 때만 저장 가능)")
-            if player_name:
-                save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
-                st.session_state.player_name_saved = True
-                st.success("점수가 저장되었습니다!")
-
+        # 틀린 문제
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
-            df_wrong = pd.DataFrame([
-                {"문항 번호": wa["index"], "문제": wa["question"], "선택한 답": wa["your_answer"], "정답": wa["correct_answer"]}
-                for wa in st.session_state.wrong_answers
-            ])
+            df_wrong=pd.DataFrame([{"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]} for wa in st.session_state.wrong_answers])
             st.table(df_wrong)
+
+        # 만점이면 이름 입력 가능
+        if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_entered:
+            player_name = st.text_input("🎖 만점 달성! 이름 입력:")
+            if player_name:
+                save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
+                st.session_state.player_name_entered=True
+                st.success("점수가 저장되었습니다.")
 
         if st.button("게임 재시작"):
             reset_game()
@@ -249,7 +244,7 @@ def main():
             st.session_state.streak = 0
             st.error(f"오답입니다. 정답: {q['correct']}")
             st.session_state.wrong_answers.append({
-                "index": st.session_state.question_index+1,
+                "index": st.session_state.question_index + 1,
                 "question": q["prompt"],
                 "your_answer": choice,
                 "correct_answer": q["correct"]
