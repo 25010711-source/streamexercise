@@ -168,6 +168,7 @@ def main():
     with st.sidebar:
         st.header("게임 설정")
 
+        # 게임 재시작 버튼
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
@@ -208,7 +209,22 @@ def main():
         elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
         elif selected_mode=="이름 → 원소기호": st.session_state.mode="name_to_periodic"
 
-        # CSV 다운로드
+        # 순위표
+        st.subheader("🏆 순위표")
+        st.markdown("**화학식 게임**")
+        ranking1 = get_ranking("화학식 게임")
+        df1 = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
+        df1.index = df1.index + 1
+        df1.index.name = "순위"
+        st.dataframe(df1, use_container_width=True)
+
+        st.markdown("**주기율표 게임**")
+        ranking2 = get_ranking("주기율표 게임")
+        df2 = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
+        df2.index = df2.index + 1
+        df2.index.name = "순위"
+        st.dataframe(df2, use_container_width=True)
+
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -253,24 +269,11 @@ def main():
             else:
                 st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
-        # ----------------- 순위표 -----------------
-        st.subheader("순위표 (가로 스크롤 가능)")
+        # 게임 재시작 버튼
+        if st.button("🔄 게임 재시작"):
+            reset_game()
+            st.rerun()
 
-        st.markdown("### 화학식 게임")
-        ranking1 = get_ranking("화학식 게임")
-        df1 = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
-        df1.index = df1.index + 1
-        df1.index.name = "순위"
-        st.dataframe(df1, use_container_width=True)
-
-        st.markdown("### 주기율표 게임")
-        ranking2 = get_ranking("주기율표 게임")
-        df2 = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
-        df2.index = df2.index + 1
-        df2.index.name = "순위"
-        st.dataframe(df2, use_container_width=True)
-
-        show_csv_download()
         return
 
     # ----------------- 게임 진행 -----------------
