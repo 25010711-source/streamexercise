@@ -157,24 +157,22 @@ def show_csv_download():
 
 # ------------------------- 메인 -------------------------
 def main():
-    st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
-    st.title("🧪 화학식/주기율표 게임")
+    st.set_page_config(page_title="과학 학습 게임", layout="wide")
+    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
 
-    # DB 초기화 (데이터 유지)
     init_db()
     init_state()
     disabled_state = st.session_state.game_started
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
-        st.header("게임 설정 & 순위")
+        st.header("게임 설정")
 
-        # 게임 재시작
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
 
-        # ---------------- 게임 종류 & 모드 선택 ----------------
+        # 게임 종류 & 모드 선택
         st.subheader("게임 종류 선택")
         game_type = st.radio(
             "",
@@ -199,12 +197,10 @@ def main():
                 disabled=disabled_state
             )
 
-        # 문항 수 선택
         st.subheader("문항 수")
         questions_to_ask = st.slider("문제 수 선택", 5, 20, 10, disabled=disabled_state)
         st.session_state.questions_to_ask = questions_to_ask
 
-        # 모드 내부 코드 적용
         if selected_mode=="전체":
             st.session_state.mode = "molecule_all" if game_type=="화학식 게임" else "periodic_all"
         elif selected_mode=="분자식 → 이름": st.session_state.mode="molecule_to_name"
@@ -212,25 +208,7 @@ def main():
         elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
         elif selected_mode=="이름 → 원소기호": st.session_state.mode="name_to_periodic"
 
-        # ---------------- 순위표 가로 스크롤 ----------------
-        st.subheader("순위표 (가로 스크롤 가능)")
-        ranking1 = get_ranking("화학식 게임")
-        ranking2 = get_ranking("주기율표 게임")
-
-        df1 = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
-        df1.insert(0, "게임", "화학식 게임")
-        df1.index = df1.index + 1
-        df1.index.name = "순위"
-
-        df2 = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
-        df2.insert(0, "게임", "주기율표 게임")
-        df2.index = df2.index + 1
-        df2.index.name = "순위"
-
-        st.dataframe(df1, use_container_width=True)
-        st.dataframe(df2, use_container_width=True)
-
-        # ---------------- CSV 다운로드 ----------------
+        # CSV 다운로드
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -252,7 +230,6 @@ def main():
         st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
-        # 틀린 문제
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
             df_wrong = pd.DataFrame([
@@ -276,7 +253,23 @@ def main():
             else:
                 st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
-        # CSV 다운로드
+        # ----------------- 순위표 -----------------
+        st.subheader("순위표 (가로 스크롤 가능)")
+
+        st.markdown("### 화학식 게임")
+        ranking1 = get_ranking("화학식 게임")
+        df1 = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
+        df1.index = df1.index + 1
+        df1.index.name = "순위"
+        st.dataframe(df1, use_container_width=True)
+
+        st.markdown("### 주기율표 게임")
+        ranking2 = get_ranking("주기율표 게임")
+        df2 = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
+        df2.index = df2.index + 1
+        df2.index.name = "순위"
+        st.dataframe(df2, use_container_width=True)
+
         show_csv_download()
         return
 
