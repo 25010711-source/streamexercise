@@ -54,7 +54,7 @@ def save_score_csv():
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql("SELECT * FROM ranking", conn)
     conn.close()
-    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")  # Excel에서 한글 깨지지 않음
 
 def get_ranking(game_type, limit=20):
     conn = sqlite3.connect(DB_PATH)
@@ -82,7 +82,7 @@ def get_ranking(game_type, limit=20):
     return rows
 
 # ------------------------- 보기 생성 -------------------------
-def generate_distractors(correct: str, pool: List[Tuple[str,str]], mode: str, n: int=3) -> List[str]:
+def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
     choices = set()
     attempts = 0
     while len(choices) < n and attempts < 100:
@@ -208,7 +208,7 @@ def main():
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
-        # ---------------- CSV 확인 & 다운로드 버튼 ----------------
+        # CSV 확인 & 다운로드 버튼
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -241,16 +241,19 @@ def main():
         # 틀린 문제
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
-            df_wrong=pd.DataFrame([{"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]} for wa in st.session_state.wrong_answers])
+            df_wrong = pd.DataFrame([
+                {"문항 번호": wa["index"], "문제": wa["question"], "선택한 답": wa["your_answer"], "정답": wa["correct_answer"]}
+                for wa in st.session_state.wrong_answers
+            ])
             st.table(df_wrong)
 
-        # 이름 입력 없이도 점수 저장
-        if not st.session_state.player_name_entered:
-            player_name = st.text_input("이름 입력 (선택):", value=f"익명{int(time.time())}")
+        # ✅ 만점인 경우에만 점수 저장
+        if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_entered:
+            player_name = st.text_input("🎖 만점 달성! 이름 입력:")
             if player_name:
                 save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
                 save_score_csv()
-                st.session_state.player_name_entered=True
+                st.session_state.player_name_entered = True
                 st.success("점수가 저장되었습니다.")
 
         # CSV 확인 & 다운로드 버튼
