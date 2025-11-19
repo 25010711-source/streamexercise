@@ -5,6 +5,7 @@ import pandas as pd
 import sqlite3
 from typing import List, Tuple
 import os
+import io
 
 DB_PATH = "ranking.db"
 CSV_PATH = "ranking.csv"
@@ -144,6 +145,24 @@ def next_question():
     random.shuffle(options)
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
+# ----------------- CSV 확인 & 다운로드 -----------------
+def show_csv_download():
+    if os.path.exists(CSV_PATH):
+        df_csv = pd.read_csv(CSV_PATH)
+        st.subheader("📄 전체 점수 CSV 확인")
+        st.dataframe(df_csv)
+
+        csv_buffer = io.StringIO()
+        df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
+        st.download_button(
+            label="⬇ CSV 다운로드",
+            data=csv_buffer.getvalue(),
+            file_name="ranking.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("아직 CSV 파일이 없습니다. 게임을 먼저 진행하세요.")
+
 # ------------------------- 메인 -------------------------
 def main():
     st.set_page_config(page_title="과학 학습 게임")
@@ -189,6 +208,9 @@ def main():
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
+        # ---------------- CSV 확인 & 다운로드 버튼 ----------------
+        show_csv_download()
+
     # ----------------- 게임 시작 -----------------
     if not st.session_state.game_started:
         st.info("설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
@@ -222,14 +244,17 @@ def main():
             df_wrong=pd.DataFrame([{"문항 번호":wa["index"],"문제":wa["question"],"선택한 답":wa["your_answer"],"정답":wa["correct_answer"]} for wa in st.session_state.wrong_answers])
             st.table(df_wrong)
 
-        # 만점이면 이름 입력 가능
-        if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_entered:
-            player_name = st.text_input("🎖 만점 달성! 이름 입력:")
+        # 이름 입력 없이도 점수 저장
+        if not st.session_state.player_name_entered:
+            player_name = st.text_input("이름 입력 (선택):", value=f"익명{int(time.time())}")
             if player_name:
                 save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
-                save_score_csv()  # CSV로도 저장
+                save_score_csv()
                 st.session_state.player_name_entered=True
                 st.success("점수가 저장되었습니다.")
+
+        # CSV 확인 & 다운로드 버튼
+        show_csv_download()
 
         if st.button("게임 재시작"):
             reset_game()
