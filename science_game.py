@@ -29,12 +29,15 @@ PERIODIC = [
     ("S", "황"), ("Cl", "염소"), ("Ar", "아르곤"), ("K", "칼륨"), ("Ca", "칼슘")
 ]
 
-# ------------------------- DB 관련 -------------------------
-def save_score(game_type, student_id, player_name, score, elapsed_time):
+# ------------------------- DB 초기화 -------------------------
+def init_db():
+    # 기존 테이블 삭제 (초기화)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    cur.execute("DROP TABLE IF EXISTS ranking")
+    # 새 테이블 생성
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS ranking (
+        CREATE TABLE ranking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_type TEXT,
             student_id TEXT,
@@ -44,6 +47,13 @@ def save_score(game_type, student_id, player_name, score, elapsed_time):
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.commit()
+    conn.close()
+
+# ------------------------- DB/CSV -------------------------
+def save_score(game_type, student_id, player_name, score, elapsed_time):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
     cur.execute("""
         INSERT INTO ranking (game_type, student_id, player_name, score, elapsed_time)
         VALUES (?, ?, ?, ?, ?)
@@ -61,18 +71,6 @@ def get_ranking(game_type, limit=10):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS ranking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            game_type TEXT,
-            student_id TEXT,
-            player_name TEXT,
-            score INTEGER,
-            elapsed_time REAL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    cur.execute("""
         SELECT student_id, player_name, score, elapsed_time
         FROM ranking
         WHERE game_type=?
@@ -83,7 +81,7 @@ def get_ranking(game_type, limit=10):
     conn.close()
     return rows
 
-# ------------------------- 보기 생성 -------------------------
+# ------------------------- 문제/보기 생성 -------------------------
 def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
     choices = set()
     attempts = 0
@@ -95,7 +93,7 @@ def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
             choices.add(candidate)
     return list(choices)
 
-# ------------------------- 상태 초기화 -------------------------
+# ------------------------- 세션 상태 초기화 -------------------------
 def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
@@ -166,6 +164,9 @@ def main():
     st.set_page_config(page_title="과학 학습 게임")
     st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
 
+    # DB 초기화
+    init_db()
+
     init_state()
     disabled_state = st.session_state.game_started
 
@@ -177,7 +178,7 @@ def main():
             ranking = get_ranking(game_type)
             if ranking:
                 df = pd.DataFrame(ranking, columns=["학번","이름","점수","시간(초)"])
-                df.index = df.index + 1  # 1부터 시작하는 순위
+                df.index = df.index + 1
                 df.index.name = "순위"
                 st.table(df)
 
@@ -208,7 +209,7 @@ def main():
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
-        # CSV 다운로드 버튼만
+        # CSV 다운로드
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -262,7 +263,7 @@ def main():
             else:
                 st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
-        # CSV 다운로드 버튼
+        # CSV 다운로드
         show_csv_download()
 
         if st.button("게임 재시작"):
