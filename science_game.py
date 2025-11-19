@@ -169,25 +169,41 @@ def main():
 
     # DB 초기화 (데이터 유지)
     init_db()
-
     init_state()
     disabled_state = st.session_state.game_started
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
-        st.header("🏆 순위표 (1~10등)")
-        for game_type in ["화학식 게임", "주기율표 게임"]:
-            st.subheader(game_type)
-            ranking = get_ranking(game_type)
-            if ranking:
-                df = pd.DataFrame(ranking, columns=["학번","이름","점수","시간(초)"])
+        st.header("게임 설정 & 순위")
+        # 게임 재시작 버튼
+        if st.button("🔄 게임 재시작"):
+            reset_game()
+            st.rerun()
+
+        # 순위표 2열 배치
+        col1, col2 = st.columns(2)
+        ranking1 = get_ranking("화학식 게임")
+        ranking2 = get_ranking("주기율표 게임")
+
+        with col1:
+            st.subheader("화학식 게임 1~10등")
+            if ranking1:
+                df = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
                 df.index = df.index + 1
                 df.index.name = "순위"
                 st.table(df)
 
-        st.header("게임 설정")
+        with col2:
+            st.subheader("주기율표 게임 1~10등")
+            if ranking2:
+                df = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
+                df.index = df.index + 1
+                df.index.name = "순위"
+                st.table(df)
+
+        st.subheader("게임 종류 선택")
         game_type = st.radio(
-            "게임 종류 선택",
+            "",
             ["화학식 게임","주기율표 게임"],
             index=0 if st.session_state.game_type=="화학식 게임" else 1,
             disabled=disabled_state
@@ -268,10 +284,6 @@ def main():
 
         # CSV 다운로드
         show_csv_download()
-
-        if st.button("게임 재시작"):
-            reset_game()
-            st.rerun()
         return
 
     # ----------------- 게임 진행 -----------------
