@@ -31,13 +31,11 @@ PERIODIC = [
 
 # ------------------------- DB 초기화 -------------------------
 def init_db():
-    # 기존 테이블 삭제 (초기화)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS ranking")
-    # 새 테이블 생성
+    # 테이블 없으면 생성
     cur.execute("""
-        CREATE TABLE ranking (
+        CREATE TABLE IF NOT EXISTS ranking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_type TEXT,
             student_id TEXT,
@@ -47,6 +45,11 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # 기존 테이블에 student_id 컬럼 없으면 추가
+    cur.execute("PRAGMA table_info(ranking)")
+    columns = [info[1] for info in cur.fetchall()]
+    if "student_id" not in columns:
+        cur.execute("ALTER TABLE ranking ADD COLUMN student_id TEXT")
     conn.commit()
     conn.close()
 
@@ -164,7 +167,7 @@ def main():
     st.set_page_config(page_title="과학 학습 게임")
     st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
 
-    # DB 초기화
+    # DB 초기화 (데이터 유지)
     init_db()
 
     init_state()
