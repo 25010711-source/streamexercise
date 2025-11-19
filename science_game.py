@@ -157,8 +157,8 @@ def show_csv_download():
 
 # ------------------------- 메인 -------------------------
 def main():
-    st.set_page_config(page_title="과학 학습 게임", layout="wide")
-    st.title("🧪 과학 학습 게임 (화학식 + 주기율표)")
+    st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
+    st.title("🧪 화학식/주기율표 게임")
 
     init_db()
     init_state()
