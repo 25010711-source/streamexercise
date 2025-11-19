@@ -4,8 +4,10 @@ import time
 import pandas as pd
 import sqlite3
 from typing import List, Tuple
+import os
 
 DB_PATH = "ranking.db"
+CSV_PATH = "ranking.csv"
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
@@ -47,7 +49,13 @@ def save_score(game_type, player_name, score, elapsed_time):
     conn.commit()
     conn.close()
 
-def get_ranking(game_type, limit=10):
+def save_score_csv():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql("SELECT * FROM ranking", conn)
+    conn.close()
+    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+
+def get_ranking(game_type, limit=20):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
@@ -219,6 +227,7 @@ def main():
             player_name = st.text_input("🎖 만점 달성! 이름 입력:")
             if player_name:
                 save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
+                save_score_csv()  # CSV로도 저장
                 st.session_state.player_name_entered=True
                 st.success("점수가 저장되었습니다.")
 
