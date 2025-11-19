@@ -157,7 +157,7 @@ def show_csv_download():
 
 # ------------------------- 메인 -------------------------
 def main():
-    st.set_page_config(page_title="화학식/주기율표표 게임", layout="wide")
+    st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
     st.title("🧪 화학식/주기율표 게임")
 
     # DB 초기화 (데이터 유지)
