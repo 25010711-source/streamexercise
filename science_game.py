@@ -30,13 +30,14 @@ PERIODIC = [
 ]
 
 # ------------------------- DB 관련 -------------------------
-def save_score(game_type, player_name, score, elapsed_time):
+def save_score(game_type, student_id, player_name, score, elapsed_time):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS ranking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_type TEXT,
+            student_id TEXT,
             player_name TEXT,
             score INTEGER,
             elapsed_time REAL,
@@ -44,9 +45,9 @@ def save_score(game_type, player_name, score, elapsed_time):
         )
     """)
     cur.execute("""
-        INSERT INTO ranking (game_type, player_name, score, elapsed_time)
-        VALUES (?, ?, ?, ?)
-    """, (game_type, player_name, score, elapsed_time))
+        INSERT INTO ranking (game_type, student_id, player_name, score, elapsed_time)
+        VALUES (?, ?, ?, ?, ?)
+    """, (game_type, student_id, player_name, score, elapsed_time))
     conn.commit()
     conn.close()
 
@@ -54,7 +55,7 @@ def save_score_csv():
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql("SELECT * FROM ranking", conn)
     conn.close()
-    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")  # Excel에서 한글 깨지지 않음
+    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
 
 def get_ranking(game_type, limit=10):
     conn = sqlite3.connect(DB_PATH)
@@ -63,6 +64,7 @@ def get_ranking(game_type, limit=10):
         CREATE TABLE IF NOT EXISTS ranking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_type TEXT,
+            student_id TEXT,
             player_name TEXT,
             score INTEGER,
             elapsed_time REAL,
@@ -71,7 +73,7 @@ def get_ranking(game_type, limit=10):
     """)
     conn.commit()
     cur.execute("""
-        SELECT player_name, score, elapsed_time
+        SELECT student_id, player_name, score, elapsed_time
         FROM ranking
         WHERE game_type=?
         ORDER BY score DESC, elapsed_time ASC
@@ -170,12 +172,14 @@ def main():
     # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("🏆 순위표 (1~10등)")
-        st.subheader("화학식 게임")
-        df_m = pd.DataFrame(get_ranking("화학식 게임"), columns=["이름","점수","시간(초)"])
-        st.table(df_m)
-        st.subheader("주기율표 게임")
-        df_p = pd.DataFrame(get_ranking("주기율표 게임"), columns=["이름","점수","시간(초)"])
-        st.table(df_p)
+        for game_type in ["화학식 게임", "주기율표 게임"]:
+            st.subheader(game_type)
+            ranking = get_ranking(game_type)
+            if ranking:
+                df = pd.DataFrame(ranking, columns=["학번","이름","점수","시간(초)"])
+                df.index = df.index + 1  # 1부터 시작하는 순위
+                df.index.name = "순위"
+                st.table(df)
 
         st.header("게임 설정")
         game_type = st.radio(
@@ -204,7 +208,7 @@ def main():
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
-        # CSV 다운로드 버튼만 남김
+        # CSV 다운로드 버튼만
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -243,14 +247,20 @@ def main():
             ])
             st.table(df_wrong)
 
-        # ✅ 만점인 경우만 점수 저장
-        if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_entered:
-            player_name = st.text_input("🎖 만점 달성! 이름 입력:")
-            if player_name:
-                save_score(st.session_state.game_type, player_name, st.session_state.score, st.session_state.elapsed_time)
-                save_score_csv()
-                st.session_state.player_name_entered = True
-                st.success("점수가 저장되었습니다.")
+        # 만점 시 학번+이름 입력
+        if st.session_state.score == st.session_state.questions_to_ask:
+            if not st.session_state.player_name_entered:
+                student_id = st.text_input("학번 입력:", key="student_id")
+                player_name = st.text_input("이름 입력:", key="player_name")
+                if student_id and player_name:
+                    if st.button("점수 저장"):
+                        save_score(st.session_state.game_type, student_id, player_name,
+                                   st.session_state.score, st.session_state.elapsed_time)
+                        save_score_csv()
+                        st.session_state.player_name_entered = True
+                        st.success("점수가 저장되었습니다.")
+            else:
+                st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
         # CSV 다운로드 버튼
         show_csv_download()
