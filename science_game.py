@@ -56,7 +56,7 @@ def save_score_csv():
     conn.close()
     df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")  # Excel에서 한글 깨지지 않음
 
-def get_ranking(game_type, limit=20):
+def get_ranking(game_type, limit=10):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
@@ -145,23 +145,19 @@ def next_question():
     random.shuffle(options)
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
-# ----------------- CSV 확인 & 다운로드 -----------------
+# ----------------- CSV 다운로드 -----------------
 def show_csv_download():
     if os.path.exists(CSV_PATH):
+        csv_buffer = io.BytesIO()
         df_csv = pd.read_csv(CSV_PATH)
-        st.subheader("📄 전체 점수 CSV 확인")
-        st.dataframe(df_csv)
-
-        csv_buffer = io.StringIO()
         df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
+        csv_buffer.seek(0)
         st.download_button(
             label="⬇ CSV 다운로드",
-            data=csv_buffer.getvalue(),
+            data=csv_buffer,
             file_name="ranking.csv",
             mime="text/csv"
         )
-    else:
-        st.info("아직 CSV 파일이 없습니다. 게임을 먼저 진행하세요.")
 
 # ------------------------- 메인 -------------------------
 def main():
@@ -173,7 +169,7 @@ def main():
 
     # ---------------- Sidebar ----------------
     with st.sidebar:
-        st.header("순위표")
+        st.header("🏆 순위표 (1~10등)")
         st.subheader("화학식 게임")
         df_m = pd.DataFrame(get_ranking("화학식 게임"), columns=["이름","점수","시간(초)"])
         st.table(df_m)
@@ -208,7 +204,7 @@ def main():
                                      disabled=disabled_state)
         st.session_state.questions_to_ask = st.slider("문제 수",5,20,10, disabled=disabled_state)
 
-        # CSV 확인 & 다운로드 버튼
+        # CSV 다운로드 버튼만 남김
         show_csv_download()
 
     # ----------------- 게임 시작 -----------------
@@ -247,7 +243,7 @@ def main():
             ])
             st.table(df_wrong)
 
-        # ✅ 만점인 경우에만 점수 저장
+        # ✅ 만점인 경우만 점수 저장
         if st.session_state.score == st.session_state.questions_to_ask and not st.session_state.player_name_entered:
             player_name = st.text_input("🎖 만점 달성! 이름 입력:")
             if player_name:
@@ -256,7 +252,7 @@ def main():
                 st.session_state.player_name_entered = True
                 st.success("점수가 저장되었습니다.")
 
-        # CSV 확인 & 다운로드 버튼
+        # CSV 다운로드 버튼
         show_csv_download()
 
         if st.button("게임 재시작"):
