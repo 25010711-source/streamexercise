@@ -7,7 +7,6 @@ import os
 import io
 
 DB_PATH = "ranking.db"
-CSV_PATH = "ranking.csv"
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
@@ -56,12 +55,6 @@ def save_score(game_type, student_id, player_name, score, elapsed_time):
     """, (game_type, student_id, player_name, score, elapsed_time))
     conn.commit()
     conn.close()
-
-def save_score_csv():
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql("SELECT * FROM ranking", conn)
-    conn.close()
-    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
 
 def get_ranking(game_type, limit=10):
     conn = sqlite3.connect(DB_PATH)
@@ -143,17 +136,20 @@ def next_question():
 
 # ----------------- CSV 다운로드 -----------------
 def show_csv_download():
-    if os.path.exists(CSV_PATH):
-        csv_buffer = io.BytesIO()
-        df_csv = pd.read_csv(CSV_PATH)
-        df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
-        csv_buffer.seek(0)
-        st.download_button(
-            label="⬇ CSV 다운로드",
-            data=csv_buffer,
-            file_name="ranking.csv",
-            mime="text/csv"
-        )
+    conn = sqlite3.connect(DB_PATH)
+    df_csv = pd.read_sql("SELECT * FROM ranking", conn)
+    conn.close()
+
+    csv_buffer = io.BytesIO()
+    df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
+    csv_buffer.seek(0)
+
+    st.download_button(
+        label="⬇ CSV 다운로드",
+        data=csv_buffer,
+        file_name="ranking.csv",
+        mime="text/csv"
+    )
 
 # ------------------------- 메인 -------------------------
 def main():
@@ -195,7 +191,7 @@ def main():
                 disabled=disabled_state
             )
 
-        # 문제 수 고정(슬라이더 제거)
+        # 문제 수 10개로 고정
         st.session_state.questions_to_ask = 10
 
         if selected_mode=="전체":
@@ -220,6 +216,7 @@ def main():
         df2.index.name = "순위"
         st.dataframe(df2, use_container_width=True)
 
+        # CSV 다운로드 버튼 항상 표시
         show_csv_download()
 
     if not st.session_state.game_started:
@@ -255,7 +252,6 @@ def main():
                     if st.button("점수 저장"):
                         save_score(st.session_state.game_type, student_id, player_name,
                                    st.session_state.score, st.session_state.elapsed_time)
-                        save_score_csv()
                         st.session_state.player_name_entered = True
                         st.success("점수가 저장되었습니다.")
             else:
