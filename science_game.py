@@ -164,16 +164,13 @@ def main():
     init_state()
     disabled_state = st.session_state.game_started
 
-    # ---------------- Sidebar ----------------
     with st.sidebar:
         st.header("게임 설정")
 
-        # 게임 재시작 버튼
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
 
-        # 게임 종류 & 모드 선택
         st.subheader("게임 종류 선택")
         game_type = st.radio(
             "",
@@ -198,9 +195,8 @@ def main():
                 disabled=disabled_state
             )
 
-        st.subheader("문항 수")
-        questions_to_ask = st.slider("문제 수 선택", 5, 20, 10, disabled=disabled_state)
-        st.session_state.questions_to_ask = questions_to_ask
+        # 문제 수 고정(슬라이더 제거)
+        st.session_state.questions_to_ask = 10
 
         if selected_mode=="전체":
             st.session_state.mode = "molecule_all" if game_type=="화학식 게임" else "periodic_all"
@@ -209,7 +205,6 @@ def main():
         elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
         elif selected_mode=="이름 → 원소기호": st.session_state.mode="name_to_periodic"
 
-        # 순위표
         st.subheader("🏆 순위표")
         st.markdown("**화학식 게임**")
         ranking1 = get_ranking("화학식 게임")
@@ -227,7 +222,6 @@ def main():
 
         show_csv_download()
 
-    # ----------------- 게임 시작 -----------------
     if not st.session_state.game_started:
         st.info("설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
@@ -237,7 +231,6 @@ def main():
             st.rerun()
         return
 
-    # ----------------- 게임 종료 -----------------
     if st.session_state.game_over:
         if st.session_state.elapsed_time is None:
             st.session_state.elapsed_time = time.time() - st.session_state.start_time
@@ -254,7 +247,6 @@ def main():
             ])
             st.table(df_wrong)
 
-        # 만점 시 학번+이름 입력
         if st.session_state.score == st.session_state.questions_to_ask:
             if not st.session_state.player_name_entered:
                 student_id = st.text_input("학번 입력:", key="student_id")
@@ -269,14 +261,12 @@ def main():
             else:
                 st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
-        # 게임 재시작 버튼
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
 
         return
 
-    # ----------------- 게임 진행 -----------------
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
