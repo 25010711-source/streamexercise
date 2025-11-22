@@ -76,7 +76,7 @@ def get_ranking(game_type, limit=10):
 # ----------------- 개별 CSV 다운로드 (새로 추가된 부분) -----------------
 def download_csv_by_game(game_type, filename):
     conn = sqlite3.connect(DB_PATH)
-    df_csv = pd.read_sql(f"SELECT * FROM ranking WHERE game_type='{game_type}'", conn)
+    df_csv = pd.read_sql(f"SELECT * FROM ranking WHERE game_type='{game_type}' ORDER BY elapsed_time ASC", conn)
     conn.close()
 
     csv_buffer = io.BytesIO()
