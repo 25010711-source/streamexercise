@@ -84,7 +84,7 @@ def download_csv_by_game(game_type, filename):
     csv_buffer.seek(0)
 
     st.download_button(
-        label=f"⬇ {game_type} CSV 다운로드",
+        label=f"⬇ {game_type} CSV",
         data=csv_buffer,
         file_name=filename,
         mime="text/csv"
