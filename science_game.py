@@ -6,7 +6,8 @@ import sqlite3
 import os
 import io
 
-DB_PATH = "ranking.db"
+# ------------------------- DB 경로 수정 (영구 저장용) -------------------------
+DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
