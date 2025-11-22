@@ -73,6 +73,23 @@ def get_ranking(game_type, limit=10):
     conn.close()
     return rows
 
+# ----------------- 개별 CSV 다운로드 (새로 추가된 부분) -----------------
+def download_csv_by_game(game_type, filename):
+    conn = sqlite3.connect(DB_PATH)
+    df_csv = pd.read_sql(f"SELECT * FROM ranking WHERE game_type='{game_type}'", conn)
+    conn.close()
+
+    csv_buffer = io.BytesIO()
+    df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
+    csv_buffer.seek(0)
+
+    st.download_button(
+        label=f"⬇ {game_type} CSV 다운로드",
+        data=csv_buffer,
+        file_name=filename,
+        mime="text/csv"
+    )
+
 # ------------------------- 문제/보기 생성 -------------------------
 def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
     choices = set()
@@ -137,23 +154,6 @@ def next_question():
     random.shuffle(options)
     st.session_state.current_question={"prompt":prompt,"options":options,"correct":correct}
 
-# ----------------- CSV 다운로드 -----------------
-def show_csv_download():
-    conn = sqlite3.connect(DB_PATH)
-    df_csv = pd.read_sql("SELECT * FROM ranking", conn)
-    conn.close()
-
-    csv_buffer = io.BytesIO()
-    df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
-    csv_buffer.seek(0)
-
-    st.download_button(
-        label="⬇ CSV 다운로드",
-        data=csv_buffer,
-        file_name="ranking.csv",
-        mime="text/csv"
-    )
-
 # ------------------------- 메인 -------------------------
 def main():
     st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
@@ -194,7 +194,6 @@ def main():
                 disabled=disabled_state
             )
 
-        # 문제 수 10개로 고정
         st.session_state.questions_to_ask = 10
 
         if selected_mode=="전체":
@@ -219,8 +218,9 @@ def main():
         df2.index.name = "순위"
         st.dataframe(df2, use_container_width=True)
 
-        # CSV 다운로드 버튼 항상 표시
-        show_csv_download()
+        # 🔽 CSV 다운로드 (게임별 개별 다운로드)
+        download_csv_by_game("화학식 게임", "molecule_ranking.csv")
+        download_csv_by_game("주기율표 게임", "periodic_ranking.csv")
 
     if not st.session_state.game_started:
         st.info("설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
