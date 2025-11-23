@@ -7,9 +7,7 @@ import os
 import io
 
 # ------------------------- DB 경로 수정 (영구 저장 + 안전) -------------------------
-DB_DIR = "/mount/data"
-os.makedirs(DB_DIR, exist_ok=True)
-DB_PATH = os.path.join(DB_DIR, "ranking.db")
+DB_PATH = "/mount/data/ranking.db"
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
