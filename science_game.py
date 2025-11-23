@@ -112,18 +112,17 @@ def init_state():
         "score":0, "total":0, "streak":0, "question_index":0,
         "questions_to_ask":10, "game_type":"화학식 게임", "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
-        "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False,
-        "player_name_entered":False
+        "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False
     }
     for k,v in defaults.items():
         if k not in st.session_state:
             st.session_state[k]=v
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","player_name_entered"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started"]:
         if key=="used_questions": st.session_state[key]=set()
         elif key=="wrong_answers": st.session_state[key]=[]
-        elif key in ["game_over","game_started","player_name_entered"]: st.session_state[key]=False
+        elif key in ["game_over","game_started"]: st.session_state[key]=False
         else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
 
 # ------------------------- 다음 문제 -------------------------
@@ -163,7 +162,7 @@ def main():
     st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
     st.title("🧪 화학식/주기율표 게임")
 
-    auto_backup_db()  # ✅ 백업 호출
+    auto_backup_db()
     init_db()
     init_state()
     disabled_state = st.session_state.game_started
@@ -223,7 +222,6 @@ def main():
         df2.index.name = "순위"
         st.dataframe(df2, use_container_width=True)
 
-        # 🔽 CSV 다운로드
         download_csv_by_game("화학식 게임", "molecule_ranking.csv")
         download_csv_by_game("주기율표 게임", "periodic_ranking.csv")
 
@@ -251,19 +249,6 @@ def main():
                 for wa in st.session_state.wrong_answers
             ])
             st.table(df_wrong)
-
-        if st.session_state.score == st.session_state.questions_to_ask:
-            if not st.session_state.player_name_entered:
-                student_id = st.text_input("학번 입력:", key="student_id")
-                player_name = st.text_input("이름 입력:", key="player_name")
-                if student_id and player_name:
-                    if st.button("점수 저장"):
-                        save_score(st.session_state.game_type, student_id, player_name,
-                                   st.session_state.score, st.session_state.elapsed_time)
-                        st.session_state.player_name_entered = True
-                        st.success("점수가 저장되었습니다.")
-            else:
-                st.success("점수가 이미 저장되어 수정할 수 없습니다.")
 
         if st.button("🔄 게임 재시작"):
             reset_game()
@@ -301,6 +286,17 @@ def main():
         st.rerun()
 
     st.progress(st.session_state.question_index / st.session_state.questions_to_ask)
+
+    # ---------------------- 항상 표시되는 점수 저장 입력창 ----------------------
+    st.subheader("점수 저장")
+    student_id = st.text_input("학번 입력:", key="student_id", value="")
+    player_name = st.text_input("이름 입력:", key="player_name", value="")
+
+    if student_id and player_name:
+        if st.button("점수 저장"):
+            save_score(st.session_state.game_type, student_id, player_name,
+                       st.session_state.score or 0, st.session_state.elapsed_time or 0)
+            st.success("점수가 저장되었습니다.")
 
 if __name__=="__main__":
     main()
