@@ -76,6 +76,9 @@ def get_ranking(game_type, limit=10):
 def download_csv_by_game(game_type, filename):
     conn = sqlite3.connect(DB_PATH)
     df_csv = pd.read_sql(f"SELECT * FROM ranking WHERE game_type='{game_type}' ORDER BY elapsed_time ASC", conn)
+# timestamp를 한국시간으로 변환
+    df_csv['timestamp'] = pd.to_datetime(df_csv['timestamp']).dt.tz_localize('UTC').dt.tz_convert('Asia/Seoul')
+
     conn.close()
 
     csv_buffer = io.BytesIO()
