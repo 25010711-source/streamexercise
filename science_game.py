@@ -248,20 +248,28 @@ def main():
             ])
             st.table(df_wrong)
 
-        if st.session_state.score == st.session_state.questions_to_ask:
-            # 만점일 때만 학번/이름 입력창과 저장 버튼 표시
-            student_id = st.text_input("학번 입력:", key="student_id", value="")
-            player_name = st.text_input("이름 입력:", key="player_name", value="")
+       # ---------------------- 게임 종료 후 점수 저장 ----------------------
+if st.session_state.score == st.session_state.questions_to_ask:
+    if "score_saved" not in st.session_state:
+        st.session_state.score_saved = False
 
-            if st.button("점수 저장"):
-                if student_id and player_name:
-                    save_score(
-                        st.session_state.game_type,
-                        student_id,
-                        player_name,
-                        st.session_state.score,
-                        st.session_state.elapsed_time or 0
-                    )
+    if not st.session_state.score_saved:
+        student_id = st.text_input("학번 입력:", key="student_id", value="")
+        player_name = st.text_input("이름 입력:", key="player_name", value="")
+
+        if st.button("점수 저장"):
+            if student_id and player_name:
+                save_score(
+                    st.session_state.game_type,
+                    student_id,
+                    player_name,
+                    st.session_state.score,
+                    st.session_state.elapsed_time or 0
+                )
+                st.session_state.score_saved = True
+                st.success("점수가 저장되었습니다.")
+    else:
+        st.success("점수가 이미 저장되었습니다.")
 
         if st.button("🔄 게임 재시작"):
             reset_game()
