@@ -7,7 +7,7 @@ import os
 import io
 
 # ------------------------- DB 경로 수정 (영구 저장 + 안전) -------------------------
-DB_DIR = os.path.join(os.path.dirname(__file__), "ranking")
+DB_DIR = "/mount/data"
 os.makedirs(DB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DB_DIR, "ranking.db")
 
