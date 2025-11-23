@@ -5,10 +5,21 @@ import pandas as pd
 import sqlite3
 import os
 import io
+import shutil
 
-# ------------------------- DB 경로 수정 (영구 저장 + 안전) -------------------------
+# ------------------------- DB 경로 (영구 저장) -------------------------
 DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
 
+# ------------------------- 자동 백업 -------------------------
+def auto_backup_db():
+    backup_dir = os.path.join(os.path.dirname(__file__), "db_backup")
+    os.makedirs(backup_dir, exist_ok=True)
+
+    today = time.strftime('%Y-%m-%d')
+    backup_filename = os.path.join(backup_dir, f"{today}.db")
+
+    if not os.path.exists(backup_filename):
+        shutil.copy(DB_PATH, backup_filename)
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
@@ -47,7 +58,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ------------------------- DB/CSV -------------------------
+# ------------------------- DB 저장/조회 -------------------------
 def save_score(game_type, student_id, player_name, score, elapsed_time):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -72,27 +83,18 @@ def get_ranking(game_type, limit=10):
     conn.close()
     return rows
 
-# ----------------- 개별 CSV 다운로드 (새로 추가된 부분) -----------------
+# ------------------------- CSV 다운로드 -------------------------
 def download_csv_by_game(game_type, filename):
     conn = sqlite3.connect(DB_PATH)
     df_csv = pd.read_sql(f"SELECT * FROM ranking WHERE game_type='{game_type}' ORDER BY elapsed_time ASC", conn)
-# timestamp를 한국시간으로 변환
     df_csv['timestamp'] = pd.to_datetime(df_csv['timestamp']).dt.tz_localize('UTC').dt.tz_convert('Asia/Seoul')
-
     conn.close()
-
     csv_buffer = io.BytesIO()
     df_csv.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
     csv_buffer.seek(0)
+    st.download_button(label=f"⬇ {game_type} CSV", data=csv_buffer, file_name=filename, mime="text/csv")
 
-    st.download_button(
-        label=f"⬇ {game_type} CSV",
-        data=csv_buffer,
-        file_name=filename,
-        mime="text/csv"
-    )
-
-# ------------------------- 문제/보기 생성 -------------------------
+# ------------------------- 문제 생성 -------------------------
 def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
     choices = set()
     attempts = 0
@@ -104,7 +106,7 @@ def generate_distractors(correct: str, pool: list, mode: str, n: int=3) -> list:
             choices.add(candidate)
     return list(choices)
 
-# ------------------------- 세션 상태 초기화 -------------------------
+# ------------------------- 세션 초기화 -------------------------
 def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
@@ -161,6 +163,7 @@ def main():
     st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
     st.title("🧪 화학식/주기율표 게임")
 
+    auto_backup_db()  # ✅ 백업 호출
     init_db()
     init_state()
     disabled_state = st.session_state.game_started
@@ -220,7 +223,7 @@ def main():
         df2.index.name = "순위"
         st.dataframe(df2, use_container_width=True)
 
-        # 🔽 CSV 다운로드 (게임별 개별 다운로드)
+        # 🔽 CSV 다운로드
         download_csv_by_game("화학식 게임", "molecule_ranking.csv")
         download_csv_by_game("주기율표 게임", "periodic_ranking.csv")
 
