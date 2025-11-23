@@ -6,7 +6,6 @@ import sqlite3
 import os
 import io
 import shutil
-from streamlit.components.v1 import html
 
 # ------------------------- DB 경로 (영구 저장) -------------------------
 DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
@@ -167,9 +166,64 @@ def main():
     init_state()
     disabled_state = st.session_state.game_started
 
-    # ----------------- 사이드바 생략 ----------------- (기존 코드 그대로)
+    with st.sidebar:
+        st.header("게임 설정")
 
-    # ----------------- 게임 진행 -----------------
+        if st.button("🔄 게임 재시작"):
+            reset_game()
+            st.rerun()
+
+        st.subheader("게임 종류 선택")
+        game_type = st.radio(
+            "",
+            ["화학식 게임","주기율표 게임"],
+            index=0 if st.session_state.game_type=="화학식 게임" else 1,
+            disabled=disabled_state
+        )
+        st.session_state.game_type = game_type
+
+        if game_type == "화학식 게임":
+            selected_mode = st.radio(
+                "모드 선택",
+                ["전체", "분자식 → 이름", "이름 → 분자식"],
+                index=0,
+                disabled=disabled_state
+            )
+        else:
+            selected_mode = st.radio(
+                "모드 선택",
+                ["전체", "원소기호 → 이름", "이름 → 원소기호"],
+                index=0,
+                disabled=disabled_state
+            )
+
+        st.session_state.questions_to_ask = 10
+
+        if selected_mode=="전체":
+            st.session_state.mode = "molecule_all" if game_type=="화학식 게임" else "periodic_all"
+        elif selected_mode=="분자식 → 이름": st.session_state.mode="molecule_to_name"
+        elif selected_mode=="이름 → 분자식": st.session_state.mode="name_to_molecule"
+        elif selected_mode=="원소기호 → 이름": st.session_state.mode="periodic_to_name"
+        elif selected_mode=="이름 → 원소기호": st.session_state.mode="name_to_periodic"
+
+        st.subheader("🏆 순위표")
+        st.markdown("**화학식 게임**")
+        ranking1 = get_ranking("화학식 게임")
+        df1 = pd.DataFrame(ranking1, columns=["학번","이름","점수","시간(초)"])
+        df1.index = df1.index + 1
+        df1.index.name = "순위"
+        st.dataframe(df1, use_container_width=True)
+
+        st.markdown("**주기율표 게임**")
+        ranking2 = get_ranking("주기율표 게임")
+        df2 = pd.DataFrame(ranking2, columns=["학번","이름","점수","시간(초)"])
+        df2.index = df2.index + 1
+        df2.index.name = "순위"
+        st.dataframe(df2, use_container_width=True)
+
+        download_csv_by_game("화학식 게임", "molecule_ranking.csv")
+        download_csv_by_game("주기율표 게임", "periodic_ranking.csv")
+
     if not st.session_state.game_started:
         st.info("설정을 확인 후 '게임 시작' 버튼을 눌러주세요.")
         if st.button("게임 시작"):
@@ -180,38 +234,60 @@ def main():
         return
 
     if st.session_state.game_over:
-        # 기존 게임 종료 처리 그대로
-        pass  # 생략
+        if st.session_state.elapsed_time is None:
+            st.session_state.elapsed_time = time.time() - st.session_state.start_time
+
+        st.write(f"📝 게임 종류: {st.session_state.game_type}")
+        st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
+
+        if st.session_state.wrong_answers:
+            st.subheader("❌ 틀린 문제 정답")
+            df_wrong = pd.DataFrame([
+                {
+                    "문항 번호": wa["index"],
+                    "문제": wa["question"],
+                    "선택한 답": wa["your_answer"],
+                    "정답": wa["correct_answer"]
+                } for wa in st.session_state.wrong_answers
+            ])
+            st.table(df_wrong)
+
+        # 만점일 때만 점수 저장
+        if st.session_state.score == st.session_state.questions_to_ask:
+            if not st.session_state.score_saved:
+                student_id = st.text_input("학번 입력:", key="student_id", value="")
+                player_name = st.text_input("이름 입력:", key="player_name", value="")
+                if st.button("점수 저장"):
+                    if student_id.strip() and player_name.strip():
+                        save_score(
+                            st.session_state.game_type,
+                            student_id.strip(),
+                            player_name.strip(),
+                            st.session_state.score,
+                            st.session_state.elapsed_time or 0
+                        )
+                        st.session_state.score_saved = True
+                        st.success("점수가 저장되었습니다.")
+                    else:
+                        st.warning("학번과 이름을 모두 입력해야 점수를 저장할 수 있습니다.")
+            else:
+                st.success("점수가 이미 저장되었습니다.")
+
+        if st.button("🔄 게임 재시작"):
+            reset_game()
+            st.rerun()
+        return
 
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # ------------------- 클릭 선택 -------------------
     choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
 
-    # ------------------- JS 숫자키 이벤트 추가 -------------------
-    js_code = f"""
-    <script>
-    const options = {q['options']};
-    document.addEventListener('keydown', function(event) {{
-        if(['1','2','3','4'].includes(event.key)) {{
-            const index = parseInt(event.key) - 1;
-            if(index >=0 && index < options.length) {{
-                fetch(`/__set_session_state__?key=key_input_choice_{st.session_state.question_index}&value=${{encodeURIComponent(options[index])}}`)
-                .then(() => location.reload());
-            }}
-        }}
-    }});
-    </script>
-    """
-    html(js_code)
-
-    if choice is not None or st.session_state.get(f"key_input_choice_{st.session_state.question_index}"):
-        final_choice = choice if choice is not None else st.session_state[f"key_input_choice_{st.session_state.question_index}"]
-
+    if choice is not None:
         st.session_state.total += 1
-        if final_choice == q["correct"]:
+        if choice == q["correct"]:
             st.session_state.score += 1
             st.session_state.streak += 1
             st.success("정답입니다!")
@@ -221,7 +297,7 @@ def main():
             st.session_state.wrong_answers.append({
                 "index": st.session_state.question_index + 1,
                 "question": q["prompt"],
-                "your_answer": final_choice,
+                "your_answer": choice,
                 "correct_answer": q["correct"]
             })
 
