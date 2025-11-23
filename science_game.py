@@ -14,10 +14,8 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
 def auto_backup_db():
     backup_dir = os.path.join(os.path.dirname(__file__), "db_backup")
     os.makedirs(backup_dir, exist_ok=True)
-
     today = time.strftime('%Y-%m-%d')
     backup_filename = os.path.join(backup_dir, f"{today}.db")
-
     if not os.path.exists(backup_filename):
         shutil.copy(DB_PATH, backup_filename)
 
@@ -250,24 +248,24 @@ def main():
             ])
             st.table(df_wrong)
 
+        if st.session_state.score == st.session_state.questions_to_ask:
+            # 만점일 때만 학번/이름 입력창과 저장 버튼 표시
+            student_id = st.text_input("학번 입력:", key="student_id", value="")
+            player_name = st.text_input("이름 입력:", key="player_name", value="")
+
+            if st.button("점수 저장"):
+                if student_id and player_name:
+                    save_score(
+                        st.session_state.game_type,
+                        student_id,
+                        player_name,
+                        st.session_state.score,
+                        st.session_state.elapsed_time or 0
+                    )
+
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
-
-        # ---------------------- 게임 종료 후 점수 저장 ----------------------
-        if st.session_state.score == st.session_state.questions_to_ask:
-    student_id = st.text_input("학번 입력:", key="student_id", value="")
-    player_name = st.text_input("이름 입력:", key="player_name", value="")
-
-    if st.button("점수 저장"):
-        if student_id and player_name:
-            save_score(
-                st.session_state.game_type,
-                student_id,
-                player_name,
-                st.session_state.score,
-                st.session_state.elapsed_time or 0
-            )
 
         return
 
