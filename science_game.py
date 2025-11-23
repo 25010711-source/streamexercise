@@ -111,18 +111,19 @@ def init_state():
         "questions_to_ask":10, "game_type":"화학식 게임", "mode":"molecule_to_name",
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False,
-        "score_saved":False
+        "choice_selected": None
     }
     for k,v in defaults.items():
         if k not in st.session_state:
             st.session_state[k]=v
 
 def reset_game():
-    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","score_saved"]:
+    for key in ["score","total","streak","question_index","current_question","used_questions","wrong_answers","start_time","elapsed_time","game_over","game_started","choice_selected"]:
         if key=="used_questions": st.session_state[key]=set()
         elif key=="wrong_answers": st.session_state[key]=[]
-        elif key in ["game_over","game_started","score_saved"]: st.session_state[key]=False
+        elif key in ["game_over","game_started"]: st.session_state[key]=False
         else: st.session_state[key]=0 if isinstance(st.session_state.get(key),int) else None
+    st.session_state.choice_selected = None
 
 # ------------------------- 다음 문제 -------------------------
 def next_question():
@@ -244,47 +245,66 @@ def main():
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제 정답")
             df_wrong = pd.DataFrame([
-                {
-                    "문항 번호": wa["index"],
-                    "문제": wa["question"],
-                    "선택한 답": wa["your_answer"],
-                    "정답": wa["correct_answer"]
-                } for wa in st.session_state.wrong_answers
+                {"문항 번호": wa["index"], "문제": wa["question"], "선택한 답": wa["your_answer"], "정답": wa["correct_answer"]}
+                for wa in st.session_state.wrong_answers
             ])
             st.table(df_wrong)
 
-        # 만점일 때만 점수 저장
-        if st.session_state.score == st.session_state.questions_to_ask:
-            if not st.session_state.score_saved:
-                student_id = st.text_input("학번 입력:", key="student_id", value="")
-                player_name = st.text_input("이름 입력:", key="player_name", value="")
-                if st.button("점수 저장"):
-                    if student_id.strip() and player_name.strip():
-                        save_score(
-                            st.session_state.game_type,
-                            student_id.strip(),
-                            player_name.strip(),
-                            st.session_state.score,
-                            st.session_state.elapsed_time or 0
-                        )
-                        st.session_state.score_saved = True
-                        st.success("점수가 저장되었습니다.")
-                    else:
-                        st.warning("학번과 이름을 모두 입력해야 점수를 저장할 수 있습니다.")
-            else:
-                st.success("점수가 이미 저장되었습니다.")
+    # ---------------------- 게임 종료 후 점수 저장 ----------------------
+    if st.session_state.game_over and st.session_state.score == st.session_state.questions_to_ask:
+        if "score_saved" not in st.session_state:
+            st.session_state.score_saved = False
+
+        if not st.session_state.score_saved:
+            student_id = st.text_input("학번 입력:", key="student_id", value="")
+            player_name = st.text_input("이름 입력:", key="player_name", value="")
+
+            if st.button("점수 저장"):
+                if student_id and player_name:
+                    save_score(
+                        st.session_state.game_type,
+                        student_id,
+                        player_name,
+                        st.session_state.score,
+                        st.session_state.elapsed_time or 0
+                    )
+                    st.session_state.score_saved = True
+                    st.success("점수가 저장되었습니다.")
+        else:
+            st.success("점수가 이미 저장되었습니다.")
 
         if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
+
         return
 
+    # ------------------------- 문제 표시 -------------------------
     q = st.session_state.current_question
     st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
+    # 숫자 키 입력으로 선택
+    for idx, option in enumerate(q["options"], 1):
+        st.write(f"{idx}. {option}")
 
+    def handle_numeric_choice():
+        val = st.session_state.numeric_input
+        if val.isdigit():
+            num = int(val)
+            if 1 <= num <= len(q["options"]):
+                st.session_state.choice_selected = q["options"][num-1]
+                st.session_state.numeric_input = ""
+                st.experimental_rerun()
+
+    st.text_input(
+        "숫자 키로 선택 (1-4):",
+        key="numeric_input",
+        on_change=handle_numeric_choice
+    )
+
+    # 기존 radio 선택 유지
+    choice = st.session_state.get("choice_selected")
     if choice is not None:
         st.session_state.total += 1
         if choice == q["correct"]:
