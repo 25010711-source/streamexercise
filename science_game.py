@@ -284,27 +284,17 @@ def main():
     st.subheader(f"문제 {st.session_state.question_index+1} / {st.session_state.questions_to_ask}")
     st.write(q["prompt"])
 
-    # 숫자 키 입력으로 선택
-    for idx, option in enumerate(q["options"], 1):
-        st.write(f"{idx}. {option}")
+    # 기존 라디오 선택
+    choice = st.radio("정답 선택:", q["options"], index=None, key=f"choice_{st.session_state.question_index}")
 
-    def handle_numeric_choice():
-        val = st.session_state.numeric_input
-        if val.isdigit():
-            num = int(val)
-            if 1 <= num <= len(q["options"]):
-                st.session_state.choice_selected = q["options"][num-1]
-                st.session_state.numeric_input = ""
-                st.experimental_rerun()
+    # 숫자 키 입력으로 라디오 선택 연결
+    numeric = st.text_input("숫자 키로 선택 (1~4):", key=f"numeric_{st.session_state.question_index}")
+    if numeric.isdigit():
+        idx = int(numeric) - 1
+        if 0 <= idx < len(q["options"]):
+            st.session_state[f"choice_{st.session_state.question_index}"] = q["options"][idx]
+            st.experimental_rerun()  # 선택 즉시 반영
 
-    st.text_input(
-        "숫자 키로 선택 (1-4):",
-        key="numeric_input",
-        on_change=handle_numeric_choice
-    )
-
-    # 기존 radio 선택 유지
-    choice = st.session_state.get("choice_selected")
     if choice is not None:
         st.session_state.total += 1
         if choice == q["correct"]:
