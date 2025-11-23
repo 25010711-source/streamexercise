@@ -7,7 +7,7 @@ import os
 import io
 
 # ------------------------- DB 경로 수정 (영구 저장 + 안전) -------------------------
-DB_PATH = "/tmp/ranking.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
 
 
 # ------------------------- 데이터 -------------------------
