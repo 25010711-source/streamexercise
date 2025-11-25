@@ -12,12 +12,17 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "ranking.db")
 
 # ------------------------- 자동 백업 -------------------------
 def auto_backup_db():
+    # DB 파일이 없으면 백업을 시도하지 않음 (오류 방지)
+    if not os.path.exists(DB_PATH):
+        return
+
     backup_dir = os.path.join(os.path.dirname(__file__), "db_backup")
     os.makedirs(backup_dir, exist_ok=True)
     today = time.strftime('%Y-%m-%d')
     backup_filename = os.path.join(backup_dir, f"{today}.db")
     if not os.path.exists(backup_filename):
         shutil.copy(DB_PATH, backup_filename)
+
 
 # ------------------------- 데이터 -------------------------
 MOLECULES = [
