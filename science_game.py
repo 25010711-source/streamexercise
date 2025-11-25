@@ -166,8 +166,8 @@ def main():
     st.set_page_config(page_title="화학식/주기율표 게임", layout="wide")
     st.title("🧪 화학식/주기율표 게임")
 
-    auto_backup_db()
     init_db()
+    auto_backup_db()
     init_state()
     disabled_state = st.session_state.game_started
 
