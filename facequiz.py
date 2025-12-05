@@ -28,9 +28,9 @@ CELEBRITY_IMAGES = [
     ("images/byungjae.jpg", "유병재"),
     ("images/kim.jpg", "김우빈"),
     ("images/kimchaewon.jpg", "김채원"),
-    ("images/leejungjae.jpg", "이정재")
+    ("images/leejungjae.jpg", "이정재"),
     ("images/shin.jpg", "신동엽"),
-    ("images/son.jpg", "손흥민"),
+    ("images/son.jpg", "손흥민")
 ]
 
 # ------------------------- DB 초기화 -------------------------
