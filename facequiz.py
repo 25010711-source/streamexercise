@@ -25,10 +25,12 @@ def auto_backup_db():
 # ------------------------- 연예인 문제 데이터 -------------------------
 # images 폴더에 눈·코·입만 남긴 사진 준비 (예: iu.jpg, parkbogum.jpg)
 CELEBRITY_IMAGES = [
-    ("images/iu.jpg", "아이유"),
-    ("images/parkbogum.jpg", "박보검"),
-    ("images/v.jpg", "뷔"),
-    ("images/jisoo.jpg", "지수")
+    ("images/byungjae.jpg", "유병재"),
+    ("images/kim.jpg", "김우빈"),
+    ("images/kimchaewon.jpg", "김채원"),
+    ("images/leejungjae.jpg", "이정재")
+    ("images/shin.jpg", "신동엽"),
+    ("images/son.jpg", "손흥민"),
 ]
 
 # ------------------------- DB 초기화 -------------------------
