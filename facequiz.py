@@ -26,7 +26,7 @@ def auto_backup_db():
 # images 폴더에 눈·코·입만 남긴 사진 준비 (예: iu.jpg, parkbogum.jpg)
 CELEBRITY_IMAGES = [
     ("images/byungjae.jpg", "유병재"),
-    ("images/kim.jpg", "김우빈"),
+    ("images/kim.jpeg", "김우빈"),
     ("images/kimchaewon.jpg", "김채원"),
     ("images/leejungjae.jpg", "이정재"),
     ("images/shin.jpg", "신동엽"),
