@@ -24,7 +24,7 @@ def auto_backup_db():
 
 # ------------------------- 연예인 문제 데이터 -------------------------
 CELEBRITY_IMAGES = [
-    ("images/byungjae.jpg", "유병재"),
+    ("images/byunjae.jpg", "유병재"),
     ("images/kim.jpeg", "김우빈"),
     ("images/kimchaewon.jpg", "김채원"),
     ("images/leejungjae.jpg", "이정재"),
