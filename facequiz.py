@@ -221,7 +221,7 @@ def main():
         else:
             st.success("점수가 이미 저장되었습니다.")
 
-        if st.button("🔄 게임 재시작2"):
+        if st.button("🔄 게임 재시작"):
             reset_game()
             st.rerun()
         return
