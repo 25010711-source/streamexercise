@@ -30,7 +30,7 @@ CELEBRITY_IMAGES = [
     ("images/leejungjae.jpg", "이정재"),
     ("images/shin.jpg", "신동엽"),
     ("images/son.jpg", "손흥민"),
-    ("images/madongseok.jpg", "마동석"),
+    ("images/madonseok.jpg", "마동석"),
     ("images/jojungseok.jpg", "조정석")
 ]
 
