@@ -103,44 +103,39 @@ def download_csv_by_game(game_type, filename):
 
 # ------------------------- 세션 초기화 -------------------------
 def init_state():
-    defaults = {
-        "score": 0,
-        "total": 0,
-        "streak": 0,
-        "question_index": 0,
-        "questions_to_ask": 10,   # ✅ 문제 수 10개로 변경
-        "game_type": "눈코입 퀴즈",
-        "current_question": None,
-        "used_questions": set(),
-        "wrong_answers": [],
-        "start_time": None,
-        "elapsed_time": None,
-        "game_over": False,
-        "game_started": False,
-        "score_saved": False,
-        "user_guess": ""
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+    if "initialized" not in st.session_state:
+        st.session_state.score = 0
+        st.session_state.total = 0
+        st.session_state.streak = 0
+        st.session_state.question_index = 0
+        st.session_state.questions_to_ask = 10   # ✅ 항상 10문제
+        st.session_state.game_type = "눈코입 퀴즈"
+        st.session_state.current_question = None
+        st.session_state.used_questions = set()
+        st.session_state.wrong_answers = []
+        st.session_state.start_time = None
+        st.session_state.elapsed_time = None
+        st.session_state.game_over = False
+        st.session_state.game_started = False
+        st.session_state.score_saved = False
+        st.session_state.user_guess = ""
+        st.session_state.initialized = True
 
 def reset_game():
-    for key in [
-        "score", "total", "streak", "question_index",
-        "current_question", "used_questions", "wrong_answers",
-        "start_time", "elapsed_time",
-        "game_over", "game_started", "score_saved", "user_guess"
-    ]:
-        if key == "used_questions":
-            st.session_state[key] = set()
-        elif key == "wrong_answers":
-            st.session_state[key] = []
-        elif key in ["game_over", "game_started", "score_saved"]:
-            st.session_state[key] = False
-        elif key == "user_guess":
-            st.session_state[key] = ""
-        else:
-            st.session_state[key] = 0 if isinstance(st.session_state.get(key), int) else None
+    st.session_state.score = 0
+    st.session_state.total = 0
+    st.session_state.streak = 0
+    st.session_state.question_index = 0
+    st.session_state.current_question = None
+    st.session_state.used_questions = set()
+    st.session_state.wrong_answers = []
+    st.session_state.start_time = None
+    st.session_state.elapsed_time = None
+    st.session_state.game_over = False
+    st.session_state.game_started = False
+    st.session_state.score_saved = False
+    st.session_state.user_guess = ""
+    # ⚠️ questions_to_ask = 10 은 절대 건드리지 않음
 
 # ------------------------- 다음 문제 -------------------------
 def next_question():
@@ -156,7 +151,7 @@ def next_question():
         "correct": answer
     }
 
-# ------------------------- 엔터키 제출 처리 -------------------------
+# ------------------------- 엔터키 제출 -------------------------
 def process_answer():
     guess = st.session_state.user_guess.strip()
     if not guess:
@@ -193,7 +188,7 @@ def main():
     auto_backup_db()
     init_state()
 
-    # ----------------- 왼쪽 순위표 -----------------
+    # ----------------- 사이드바 -----------------
     with st.sidebar:
         st.header("🏆 순위표")
         ranking = get_ranking("눈코입 퀴즈")
@@ -208,7 +203,7 @@ def main():
             reset_game()
             st.rerun()
 
-    # ----------------- 게임 시작 전 -----------------
+    # ----------------- 시작 전 -----------------
     if not st.session_state.game_started:
         st.info("게임 시작 버튼을 눌러주세요.")
         if st.button("게임 시작"):
@@ -223,55 +218,41 @@ def main():
         if st.session_state.elapsed_time is None:
             st.session_state.elapsed_time = time.time() - st.session_state.start_time
 
-        st.write(f"🎉 최종 점수: {st.session_state.score}/{st.session_state.total}")
+        st.write(f"🎉 최종 점수: {st.session_state.score}/10")
         st.write(f"⏱ 걸린 시간: {st.session_state.elapsed_time:.1f}초")
 
         if st.session_state.wrong_answers:
             st.subheader("❌ 틀린 문제")
-            df_wrong = pd.DataFrame([
-                {
-                    "문항 번호": wa["index"],
-                    "선택한 답": wa["your_answer"],
-                    "정답": wa["correct_answer"]
-                } for wa in st.session_state.wrong_answers
-            ])
-            st.table(df_wrong)
+            st.table(pd.DataFrame(st.session_state.wrong_answers))
 
         if not st.session_state.score_saved:
-            student_id = st.text_input("학번 입력:", key="student_id", value="")
-            player_name = st.text_input("이름 입력:", key="player_name", value="")
+            student_id = st.text_input("학번 입력")
+            player_name = st.text_input("이름 입력")
             if st.button("점수 저장"):
-                if student_id.strip() and player_name.strip():
+                if student_id and player_name:
                     save_score(
                         st.session_state.game_type,
-                        student_id.strip(),
-                        player_name.strip(),
+                        student_id,
+                        player_name,
                         st.session_state.score,
-                        st.session_state.elapsed_time or 0
+                        st.session_state.elapsed_time
                     )
                     st.session_state.score_saved = True
-                    st.success("점수 저장 완료 ㅋㅋ")
+                    st.success("저장 완료")
                 else:
-                    st.warning("학번이랑 이름 다 써야 저장됨;;")
+                    st.warning("학번이랑 이름 둘 다 필요함")
         else:
-            st.success("이미 저장했음")
+            st.success("이미 저장됨")
 
-        if st.button("🔄 게임 재시작"):
-            reset_game()
-            st.rerun()
         return
 
-    # ----------------- 문제 표시 -----------------
+    # ----------------- 문제 -----------------
     q = st.session_state.current_question
-    st.subheader(
-        f"문제 {st.session_state.question_index + 1} / {st.session_state.questions_to_ask}"
-    )
-
-    img = Image.open(q["image_file"])
-    st.image(img, width=300)
+    st.subheader(f"문제 {st.session_state.question_index + 1} / 10")
+    st.image(Image.open(q["image_file"]), width=300)
 
     st.text_input(
-        "연예인 이름 입력하고 엔터 ㄱㄱ:",
+        "연예인 이름 입력 후 엔터",
         key="user_guess",
         on_change=process_answer
     )
