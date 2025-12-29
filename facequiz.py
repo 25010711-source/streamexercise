@@ -97,7 +97,7 @@ def download_csv_by_game(game_type, filename):
 def init_state():
     defaults = {
         "score":0, "total":0, "streak":0, "question_index":0,
-        "questions_to_ask":5, "game_type":"눈코입 퀴즈", 
+        "questions_to_ask":10, "game_type":"눈코입 퀴즈", 
         "current_question":None, "used_questions":set(), "wrong_answers":[],
         "start_time":None, "elapsed_time":None, "game_over":False, "game_started":False,
         "score_saved":False,
